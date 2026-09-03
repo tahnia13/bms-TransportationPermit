@@ -1,0 +1,14 @@
+{
+    "permit_number": "PM-TEST",
+    "requester": "Test User",
+    "department": "IT",
+    "vehicle": "Toyota Avanza",
+    "driver": "Budi",
+    "origin": "Duri",
+    "destination": "Pekanbaru",
+    "purpose": "Testing",
+    "start_date": "2026-09-02",
+    "end_date": "2026-09-03",
+    "status": "Pending",
+    "description": "Testing API"
+}
