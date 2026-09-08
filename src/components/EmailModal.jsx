@@ -18,7 +18,7 @@ export default function EmailModal({ isOpen, onClose, permit, defaultType = "exp
   const [subject, setSubject] = useState(defaultSubject);
   const [notes, setNotes] = useState(
     defaultType === "expiry_alert"
-      ? `Yth. Rekan Tim Operasional,\n\nMohon perhatian bahwa izin operasional (Permit) dengan nomor #${permit?.permit_number} untuk kendaraan ${permit?.vehicle || "-"} dengan driver ${permit?.driver || "-"} akan kedaluwarsa pada ${permit?.end_date || "-"}.\n\nSegera ajukan pembaharuan dokumen melalui sistem transportasi PT Besmindo Makmur.`
+      ? `Yth. Rekan Tim Operasional,\n\nMohon perhatian bahwa izin operasional (Permit) dengan nomor #${permit?.permit_number} untuk kendaraan ${permit?.vehicle || "-"} dengan driver ${permit?.driver || "-"} akan kedaluwarsa pada ${permit?.end_date || "-"}.\n\nSegera ajukan pembaharuan dokumen melalui sistem transportasi PT Besmindo Materi Sewatama.`
       : `Yth. Tim Operasional & Pengemudi,\n\nSurat izin jalan #${permit?.permit_number} untuk rute ${permit?.origin} -> ${permit?.destination} telah disetujui oleh Kepala Departemen Transportasi.\n\nHarap patuhi SOP keselamatan berkendara.`
   );
   const [sending, setSending] = useState(false);
@@ -77,7 +77,7 @@ export default function EmailModal({ isOpen, onClose, permit, defaultType = "exp
             </div>
             <div>
               <h3 className="text-base font-bold text-[#12372A]">Kirim Notifikasi Email Resmi</h3>
-              <p className="text-xs text-gray-500">PT Besmindo Makmur Notification Dispatcher</p>
+              <p className="text-xs text-gray-500">PT Besmindo Materi Sewatama Notification Dispatcher</p>
             </div>
           </div>
           <button
@@ -143,7 +143,7 @@ export default function EmailModal({ isOpen, onClose, permit, defaultType = "exp
           <div className="rounded-2xl border border-emerald-100 bg-[#12372A]/5 p-3 text-[11px] text-gray-600 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-[#12372A]" />
-              <span className="font-semibold text-[#12372A]">PT Besmindo Makmur Transportation Mailer</span>
+              <span className="font-semibold text-[#12372A]">PT Besmindo Materi Sewatama Transportation Mailer</span>
             </div>
             <span className="text-gray-400">Enkripsi TLS Aktif</span>
           </div>

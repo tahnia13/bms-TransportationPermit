@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 /**
- * Universal status badge for PT Besmindo Makmur Transportation System
+ * Universal status badge for PT Besmindo Materi Sewatama Transportation System
  * Supports various entity statuses with consistent color schemes, icons, and micro-animations.
  */
 export default function StatusBadge({

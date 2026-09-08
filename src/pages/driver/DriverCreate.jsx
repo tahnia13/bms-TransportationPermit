@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { api } from "../../services/api";
+import { useToast } from "../../components/Toast";
 
 const rigOptions = [
   "02", "03", "03A", "5", "6", "7", "8", "10", "11",
@@ -19,6 +20,7 @@ const rigOptions = [
 
 export default function DriverCreate() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -61,10 +63,11 @@ export default function DriverCreate() {
     try {
       setLoading(true);
       await api.createDriver(formData);
-      alert("Pengemudi berhasil didaftarkan.");
+      toast.success("Pengemudi berhasil didaftarkan.");
       navigate("/drivers");
     } catch (err) {
       console.error("Create driver error:", err);
+      toast.error(err.message || "Gagal mendaftarkan pengemudi.");
       setError(err.message || "Gagal mendaftarkan pengemudi.");
     } finally {
       setLoading(false);

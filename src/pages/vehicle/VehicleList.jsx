@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
+import { useToast } from "../../components/Toast";
 
 const rigOptions = [
   "All",
@@ -34,6 +35,7 @@ const rigOptions = [
 ];
 
 export default function VehicleList() {
+  const toast = useToast();
   const [vehicles, setVehicles] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedRig, setSelectedRig] = useState("All");
@@ -124,10 +126,10 @@ export default function VehicleList() {
       await api.deleteVehicle(vehicle.id);
       setVehicles((prev) => prev.filter((item) => item.id !== vehicle.id));
       if (selectedVehicle?.id === vehicle.id) handleClose();
-      alert("Kendaraan berhasil dihapus.");
+      toast.success("Kendaraan berhasil dihapus.");
     } catch (error) {
       console.error("Delete vehicle error:", error);
-      alert(error.message || "Gagal menghapus kendaraan.");
+      toast.error(error.message || "Gagal menghapus kendaraan.");
     }
   };
 
@@ -180,10 +182,10 @@ export default function VehicleList() {
       );
       setSelectedVehicle({ ...selectedVehicle, ...updated });
       setCardMode("view");
-      alert("Data kendaraan berhasil diperbarui.");
+      toast.success("Data kendaraan berhasil diperbarui.");
     } catch (err) {
       console.error("Update vehicle error:", err);
-      alert(err.message || "Gagal memperbarui data kendaraan.");
+      toast.error(err.message || "Gagal memperbarui data kendaraan.");
     } finally {
       setSaving(false);
     }

@@ -104,27 +104,23 @@ function Sidebar({
           >
 
             {/* Logo */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#D7FF3F]">
-
-              <span className="text-lg font-black text-[#12372A]">
-                BM
-              </span>
-
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
+              <img
+                src="/besmindo-emblem.png"
+                alt="Besmindo Logo"
+                className="h-full w-full object-contain"
+              />
             </div>
-
 
             {/* Nama */}
             {!collapsed && (
               <div>
-
-                <h1 className="text-sm font-bold tracking-wide">
-                  BMS
+                <h1 className="text-sm font-bold tracking-wide text-white">
+                  BESMINDO
                 </h1>
-
-                <p className="text-xs text-white/50">
-                  Transportation
+                <p className="text-xs text-white/60">
+                  Materi Sewatama
                 </p>
-
               </div>
             )}
 

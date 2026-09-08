@@ -11,11 +11,15 @@ import {
   UserRound,
   ArrowRight,
   Route,
+  Printer,
+  FileText,
 } from "lucide-react";
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
+import { useToast } from "../../components/Toast";
 
 export default function TripList() {
+  const toast = useToast();
   const [trips, setTrips] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -28,6 +32,7 @@ export default function TripList() {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -149,16 +154,21 @@ export default function TripList() {
         setShowViewModal(false);
         setSelectedTrip(null);
       }
-      alert("Perjalanan trip berhasil dihapus.");
+      toast.success("Perjalanan trip berhasil dihapus.");
     } catch (err) {
       console.error("Delete trip error:", err);
-      alert(err.message || "Gagal menghapus data trip.");
+      toast.error(err.message || "Gagal menghapus data trip.");
     }
   };
 
   const handleView = (t) => {
     setSelectedTrip(t);
     setShowViewModal(true);
+  };
+
+  const handlePrint = (t) => {
+    setSelectedTrip(t);
+    setShowPrintModal(true);
   };
 
   const handleEdit = (t) => {
@@ -221,10 +231,10 @@ export default function TripList() {
       setSelectedTrip(updated);
       setShowEditModal(false);
       setShowViewModal(true);
-      alert("Data trip berhasil diperbarui.");
+      toast.success("Data trip berhasil diperbarui.");
     } catch (err) {
       console.error("Update trip error:", err);
-      alert(err.message || "Gagal memperbarui trip.");
+      toast.error(err.message || "Gagal memperbarui trip.");
     } finally {
       setSaving(false);
     }
@@ -443,6 +453,14 @@ export default function TripList() {
                         </button>
                         <button
                           type="button"
+                          onClick={() => handlePrint(t)}
+                          title="Cetak Surat Jalan / SPPD"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-sky-50 hover:text-sky-700"
+                        >
+                          <Printer size={15} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleEdit(t)}
                           title="Edit Trip"
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-amber-50 hover:text-amber-700"
@@ -563,6 +581,17 @@ export default function TripList() {
                 className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
               >
                 Tutup
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowViewModal(false);
+                  handlePrint(selectedTrip);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#12372A] bg-white px-3.5 py-2 text-xs font-bold text-[#12372A] hover:bg-emerald-50 transition"
+              >
+                <Printer size={14} />
+                <span>Cetak SPPD</span>
               </button>
               <button
                 type="button"
@@ -772,6 +801,152 @@ export default function TripList() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PRINTABLE SPPD / SURAT JALAN MODAL */}
+      {selectedTrip && showPrintModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs overflow-y-auto"
+          onClick={() => setShowPrintModal(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl rounded-3xl bg-white shadow-2xl p-6 sm:p-8 space-y-6 print:p-0 print:shadow-none print:max-w-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* TOP ACTIONS */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 print:hidden">
+              <span className="text-xs font-bold text-gray-500">Pratinjau Surat Tugas Perjalanan (SPPD)</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-[#12372A] px-4 py-2 text-xs font-bold text-[#D8FF00] shadow-md hover:bg-[#0c261d] transition"
+                >
+                  <Printer size={14} /> Cetak / Simpan PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPrintModal(false)}
+                  className="rounded-2xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+
+            {/* OFFICIAL LETTERHEAD */}
+            <div className="border-b-2 border-[#12372A] pb-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <img
+                  src="/besmindo-logo.png"
+                  alt="PT Besmindo Materi Sewatama"
+                  className="h-14 w-auto object-contain"
+                />
+                <div className="border-l-2 border-gray-200 pl-3">
+                  <p className="text-[11px] font-black text-[#12372A] tracking-wider uppercase">
+                    DEPARTEMEN TRANSPORTASI & LOGISTIK ARMADA RIG
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    Kawasan Industri Tenayan, Pekanbaru - Riau | Telp: (0761) 889201 | Email: logistics@besmindo.co.id
+                  </p>
+                </div>
+              </div>
+              <div className="text-right font-mono text-xs">
+                <span className="rounded-2xl border border-[#12372A] px-2.5 py-1 text-[10px] font-extrabold text-[#12372A]">
+                  SURAT JALAN RESMI
+                </span>
+              </div>
+            </div>
+
+            {/* TITLE */}
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-extrabold uppercase tracking-wider text-gray-900 underline">
+                SURAT PERINTAH TUGAS PERJALANAN / SURAT JALAN
+              </h3>
+              <p className="font-mono text-xs font-bold text-gray-600">
+                Nomor Registrasi: {selectedTrip.tripNumber || `TRIP-${selectedTrip.id}`}
+              </p>
+            </div>
+
+            {/* DOCUMENT BODY */}
+            <div className="space-y-4 text-xs text-gray-800 leading-relaxed">
+              <p>
+                Manajemen Transportasi PT Besmindo Materi Sewatama dengan ini menugaskan armada dan personil pengemudi di bawah ini untuk melaksanakan mobilisasi operasional logistik:
+              </p>
+
+              <table className="w-full border border-gray-300 rounded-2xl overflow-hidden">
+                <tbody className="divide-y divide-gray-200">
+                  <tr className="bg-gray-50/70">
+                    <td className="py-2 px-3 font-bold w-1/3 text-gray-600">Pengemudi Ditugaskan</td>
+                    <td className="py-2 px-3 font-bold text-gray-900">{selectedTrip.driver || "Driver Besmindo"}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 font-bold text-gray-600">Unit Kendaraan / Truk</td>
+                    <td className="py-2 px-3 font-semibold">{selectedTrip.vehicle || "Armada Besmindo"}</td>
+                  </tr>
+                  <tr className="bg-gray-50/70">
+                    <td className="py-2 px-3 font-bold text-gray-600">Rute Perjalanan</td>
+                    <td className="py-2 px-3 font-semibold">
+                      {selectedTrip.origin} &rarr; {selectedTrip.destination}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 font-bold text-gray-600">Jadwal Keberangkatan</td>
+                    <td className="py-2 px-3 font-semibold">{formatDate(selectedTrip.tripDate)}</td>
+                  </tr>
+                  <tr className="bg-gray-50/70">
+                    <td className="py-2 px-3 font-bold text-gray-600">Estimasi Kembali / Tiba</td>
+                    <td className="py-2 px-3 font-semibold">{formatDate(selectedTrip.returnDate)}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 font-bold text-gray-600">Keperluan / Muatan</td>
+                    <td className="py-2 px-3 font-semibold">{selectedTrip.purpose || "Mobilisasi Komponen Peralatan Drilling & Logistik Rig"}</td>
+                  </tr>
+                  <tr className="bg-gray-50/70">
+                    <td className="py-2 px-3 font-bold text-gray-600">Status Operasi</td>
+                    <td className="py-2 px-3 font-bold text-[#12372A]">{selectedTrip.status || "Planned"}</td>
+                  </tr>
+                  {selectedTrip.description && (
+                    <tr>
+                      <td className="py-2 px-3 font-bold text-gray-600">Instruksi / Catatan</td>
+                      <td className="py-2 px-3 text-gray-700">{selectedTrip.description}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              {/* HSE NOTICE */}
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 space-y-1">
+                <p className="font-bold text-amber-900 text-[11px]">Kepatuhan Keselamatan Transportasi (HSE / K3LL):</p>
+                <ol className="list-decimal pl-4 space-y-0.5 text-[10px] text-amber-800">
+                  <li>Pengemudi wajib melakukan inspeksi harian kelayakan kendaraan (P2H) sebelum berangkat.</li>
+                  <li>Kecepatan maksimal di jalan umum 60 km/jam dan di kawasan rig 20-40 km/jam.</li>
+                  <li>Wajib beristirahat minimal 15 menit setiap mengemudi selama 4 jam tanpa jeda.</li>
+                  <li>Surat tugas ini wajib dibawa dan diperlihatkan kepada petugas Pos Penjagaan Rig.</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* SIGNATURE BLOCK */}
+            <div className="grid grid-cols-2 pt-6 text-xs text-center border-t border-gray-200">
+              <div className="space-y-12">
+                <p className="font-bold text-gray-700">Pengemudi Bertugas:</p>
+                <div>
+                  <p className="font-bold text-gray-900 underline">{selectedTrip.driver || "Driver Besmindo"}</p>
+                  <p className="text-[10px] text-gray-500">Divisi Transportasi Darat</p>
+                </div>
+              </div>
+
+              <div className="space-y-12">
+                <p className="font-bold text-gray-700">Diotorisasi Oleh:</p>
+                <div>
+                  <p className="font-bold text-gray-900 underline">Transportation Administrator</p>
+                  <p className="text-[10px] text-gray-500">PT Besmindo Materi Sewatama</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

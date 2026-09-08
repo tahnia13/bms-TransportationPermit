@@ -9,9 +9,11 @@ import {
   FileText,
 } from "lucide-react";
 import { api } from "../../services/api";
+import { useToast } from "../../components/Toast";
 
 export default function TripCreate() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     tripNumber: "",
@@ -101,10 +103,11 @@ export default function TripCreate() {
       };
 
       await api.createTrip(payload);
-      alert("Jadwal perjalanan trip berhasil dibuat.");
+      toast.success("Jadwal perjalanan trip berhasil dibuat.");
       navigate("/trips");
     } catch (err) {
       console.error("Failed to create trip:", err);
+      toast.error(err.message || "Gagal membuat jadwal perjalanan trip.");
       setError(err.message || "Gagal membuat jadwal perjalanan trip.");
     } finally {
       setSaving(false);

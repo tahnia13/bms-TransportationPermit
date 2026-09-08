@@ -29,8 +29,10 @@ import {
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
 import EmailModal from "../../components/EmailModal";
+import { useToast } from "../../components/Toast";
 
 export default function PermitList() {
+  const toast = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [permits, setPermits] = useState([]);
@@ -59,28 +61,21 @@ export default function PermitList() {
     type: "expiry_alert",
   });
 
-  // User session & role
-  const [currentUser, setCurrentUser] = useState(() => {
+  // User session: Eksklusif Portal Administrator
+  const [currentUser] = useState(() => {
     try {
       const saved = localStorage.getItem("transportation_user");
-      return saved ? JSON.parse(saved) : { username: "Admin", role: "Transportation Admin" };
+      const parsed = saved ? JSON.parse(saved) : null;
+      return {
+        username: parsed?.username || "Administrator",
+        role: "Transportation Admin",
+      };
     } catch {
-      return { username: "Admin", role: "Transportation Admin" };
+      return { username: "Administrator", role: "Transportation Admin" };
     }
   });
 
-  const isAdmin = currentUser.role?.toLowerCase().includes("admin");
-
-  useEffect(() => {
-    const handleStorage = () => {
-      try {
-        const saved = localStorage.getItem("transportation_user");
-        if (saved) setCurrentUser(JSON.parse(saved));
-      } catch {}
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  const isAdmin = true;
 
   const loadPermits = async () => {
     setLoading(true);
@@ -191,7 +186,7 @@ export default function PermitList() {
 
   const handleDelete = async (permit) => {
     if (!isAdmin) {
-      alert("Hanya Administrator yang memiliki akses untuk menghapus data permit.");
+      toast.warning("Hanya Administrator yang memiliki akses untuk menghapus data permit.");
       return;
     }
 
@@ -203,10 +198,10 @@ export default function PermitList() {
       await api.deletePermit(permit.id);
       setPermits((prev) => prev.filter((p) => p.id !== permit.id));
       if (selectedPermit?.id === permit.id) handleClose();
-      alert("Permit berhasil dihapus.");
+      toast.success("Permit berhasil dihapus.");
     } catch (error) {
       console.error("Delete permit error:", error);
-      alert(error.message || "Gagal menghapus permit.");
+      toast.error(error.message || "Gagal menghapus permit.");
     }
   };
 
@@ -237,7 +232,7 @@ export default function PermitList() {
 
   const handleOpenApproval = (permit, type) => {
     if (!isAdmin) {
-      alert("Akses Terbatas: Hanya Administrator yang berwenang menyetujui atau menolak permohonan permit.");
+      toast.warning("Akses Terbatas: Hanya Administrator yang berwenang menyetujui atau menolak permohonan permit.");
       return;
     }
 
@@ -267,7 +262,7 @@ export default function PermitList() {
         const updated = res.data || { ...permit, status: "Approved" };
         setPermits((prev) => prev.map((p) => (p.id === permit.id ? updated : p)));
         if (selectedPermit?.id === permit.id) setSelectedPermit(updated);
-        alert(`Permit #${permit.permit_number} berhasil disetujui.`);
+        toast.success(`Permit #${permit.permit_number} berhasil disetujui.`);
       } else {
         const res = await api.rejectPermit(permit.id, {
           approver: currentUser.username || "Transportation Admin",
@@ -277,12 +272,12 @@ export default function PermitList() {
         const updated = res.data || { ...permit, status: "Rejected" };
         setPermits((prev) => prev.map((p) => (p.id === permit.id ? updated : p)));
         if (selectedPermit?.id === permit.id) setSelectedPermit(updated);
-        alert(`Permit #${permit.permit_number} telah ditolak.`);
+        toast.warning(`Permit #${permit.permit_number} telah ditolak.`);
       }
       setApprovalModal({ open: false, permit: null, type: "approve", notes: "" });
     } catch (err) {
       console.error("Approval error:", err);
-      alert(err.message || "Gagal memproses otorisasi permit.");
+      toast.error(err.message || "Gagal memproses otorisasi permit.");
     }
   };
 
@@ -315,10 +310,10 @@ export default function PermitList() {
       );
       setSelectedPermit({ ...selectedPermit, ...updatedPermit });
       setCardMode("view");
-      alert("Permit berhasil diperbarui.");
+      toast.success("Permit berhasil diperbarui.");
     } catch (error) {
       console.error("Update permit error:", error);
-      alert(error.message || "Gagal memperbarui permit.");
+      toast.error(error.message || "Gagal memperbarui permit.");
     } finally {
       setSaving(false);
     }
@@ -372,20 +367,14 @@ export default function PermitList() {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-xs text-gray-800">
-                Mode Akses Saat Ini: {currentUser.role}
+                Otorisasi Administrator Aktif
               </span>
-              <span
-                className={`rounded-2xl px-2 py-0.5 text-[10px] font-bold ${
-                  isAdmin ? "bg-[#D8FF00] text-[#12372A]" : "bg-sky-100 text-sky-800"
-                }`}
-              >
-                {isAdmin ? "Otoritas Penuh" : "Pengajuan & Operasional"}
+              <span className="rounded-md bg-[#12372A] px-2 py-0.5 text-[10px] font-black text-[#D8FF00]">
+                FULL ADMIN ACCESS
               </span>
             </div>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              {isAdmin
-                ? "Anda dapat menyetujui, menolak permohonan jalan, mengedit, menghapus, serta mengirim notifikasi email."
-                : "Staff berwenang membuat pengajuan permit baru dan memantau status. Otorisasi persetujuan diproses oleh Admin."}
+              Sebagai Administrator, Anda memiliki kewenangan penuh untuk persetujuan (approval), penolakan, penerbitan permit resmi, dan manajemen armada.
             </p>
           </div>
         </div>
@@ -653,7 +642,7 @@ export default function PermitList() {
                 </div>
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Surat Izin Transportasi Resmi PT Besmindo Makmur
+                    Surat Izin Transportasi Resmi PT Besmindo Materi Sewatama
                   </span>
                   <h2 className="text-lg font-extrabold text-[#12372A]">
                     {selectedPermit.permit_number || `PM-${selectedPermit.id}`}
@@ -695,7 +684,7 @@ export default function PermitList() {
                   <div className="flex items-center justify-center gap-1 text-emerald-700 font-bold text-[11px]">
                     <CheckCircle2 size={13} /> 1. Pengajuan
                   </div>
-                  <p className="text-[10px] text-gray-500 mt-1 truncate">{selectedPermit.requester || "Staff"}</p>
+                  <p className="text-[10px] text-gray-500 mt-1 truncate">{selectedPermit.requester || "Administrator"}</p>
                   <p className="text-[9px] text-gray-400">{formatDate(selectedPermit.created_at || selectedPermit.start_date)}</p>
                 </div>
 
@@ -1007,14 +996,13 @@ export default function PermitList() {
             {/* OFFICIAL LETTERHEAD */}
             <div className="border-b-2 border-[#12372A] pb-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#12372A] text-[#D8FF00] font-black text-2xl">
-                  B
-                </div>
-                <div>
-                  <h2 className="text-lg font-black tracking-wide text-[#12372A]">
-                    PT BESMINDO MAKMUR
-                  </h2>
-                  <p className="text-[11px] font-bold text-gray-700">
+                <img
+                  src="/besmindo-logo.png"
+                  alt="PT Besmindo Materi Sewatama"
+                  className="h-14 w-auto object-contain"
+                />
+                <div className="border-l-2 border-gray-200 pl-3">
+                  <p className="text-[11px] font-black text-[#12372A] tracking-wider uppercase">
                     DEPARTEMEN TRANSPORTASI, LOGISTIK & OPERASIONAL RIG
                   </p>
                   <p className="text-[10px] text-gray-500">
@@ -1042,7 +1030,7 @@ export default function PermitList() {
             {/* DOCUMENT BODY */}
             <div className="space-y-4 text-xs text-gray-800 leading-relaxed">
               <p>
-                Berdasarkan hasil pemeriksaan kelayakan armada, kesesuaian muatan, dan kepatuhan K3LL (*HSE Compliance*), Departemen Transportasi PT Besmindo Makmur dengan ini menerbitkan Izin Operasional Angkutan kepada:
+                Berdasarkan hasil pemeriksaan kelayakan armada, kesesuaian muatan, dan kepatuhan K3LL (*HSE Compliance*), Departemen Transportasi PT Besmindo Materi Sewatama dengan ini menerbitkan Izin Operasional Angkutan kepada:
               </p>
 
               <table className="w-full border border-gray-300 rounded-2xl overflow-hidden">
@@ -1089,10 +1077,10 @@ export default function PermitList() {
             {/* SIGNATURE BLOCK */}
             <div className="grid grid-cols-2 pt-6 text-xs text-center border-t border-gray-200">
               <div className="space-y-12">
-                <p className="font-bold text-gray-700">Dibuat Oleh (Staff Operasional):</p>
+                <p className="font-bold text-gray-700">Dibuat Oleh (Admin Transportasi):</p>
                 <div>
-                  <p className="font-bold text-gray-900 underline">{selectedPermit.requester || "Staff Logistik"}</p>
-                  <p className="text-[10px] text-gray-500">PT Besmindo Makmur</p>
+                  <p className="font-bold text-gray-900 underline">{selectedPermit.requester || "Transportation Admin"}</p>
+                  <p className="text-[10px] text-gray-500">PT Besmindo Materi Sewatama</p>
                 </div>
               </div>
 

@@ -138,55 +138,24 @@ function Sidebar({ collapsed, setCollapsed }) {
 
 
         {/* LOGO BOX */}
-
-        <div
-          className="
-            flex
-            h-12
-            w-12
-            shrink-0
-            items-center
-            justify-center
-            rounded-xl
-            bg-[#C6FF00]
-            text-xl
-            font-black
-            text-[#0F3D2E]
-          "
-        >
-          B
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
+          <img
+            src="/besmindo-emblem.png"
+            alt="Besmindo Logo"
+            className="h-full w-full object-contain"
+          />
         </div>
 
-
         {/* LOGO TEXT */}
-
         {!collapsed && (
-
           <div className="ml-4">
-
-            <h1
-              className="
-                text-base
-                font-bold
-                tracking-wide
-              "
-            >
+            <h1 className="text-base font-bold tracking-wide text-white">
               BESMINDO
             </h1>
-
-
-            <p
-              className="
-                mt-0.5
-                text-xs
-                text-white/60
-              "
-            >
-              Transportation System
+            <p className="mt-0.5 text-xs text-white/60">
+              Materi Sewatama
             </p>
-
           </div>
-
         )}
 
       </div>

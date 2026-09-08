@@ -11,22 +11,31 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { api } from "../../services/api";
+import { useToast } from "../../components/Toast";
 
 export default function PermitCreate() {
   const navigate = useNavigate();
+  const toast = useToast();
+  const savedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("transportation_user") || "{}");
+    } catch {
+      return {};
+    }
+  })();
 
   const [formData, setFormData] = useState({
-    requester: "",
-    department: "",
+    requester: savedUser.username || "Administrator",
+    department: "Transportation & Logistic",
     vehicle: "",
     driver: "",
-    origin: "Pekanbaru",
+    origin: "Pekanbaru Workshop",
     destination: "",
     start_date: "",
     end_date: "",
     purpose: "",
     description: "",
-    status: "Pending",
+    status: "Approved",
   });
 
   const [vehicles, setVehicles] = useState([]);
@@ -88,10 +97,11 @@ export default function PermitCreate() {
       };
 
       await api.createPermit(payload);
-      alert(`Permit ${permitNumber} berhasil diterbitkan.`);
+      toast.success(`Permit ${permitNumber} berhasil diterbitkan.`);
       navigate("/permit");
     } catch (error) {
       console.error("Create permit error:", error);
+      toast.error(error.message || "Gagal membuat permit.");
       setErrorMessage(error.message || "Gagal membuat permit.");
       setErrors(error.errors || {});
     } finally {

@@ -22,6 +22,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 // =====================================================
 
 import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 
 // =====================================================
 // DASHBOARD
@@ -74,7 +75,7 @@ import Reports from "./pages/reports/Reports";
 // =====================================================
 
 import AuditLog from "./pages/audit/AuditLog";
-
+import { ToastProvider } from "./components/Toast";
 
 // =====================================================
 // APP
@@ -82,9 +83,9 @@ import AuditLog from "./pages/audit/AuditLog";
 
 function App() {
   return (
-    <BrowserRouter>
-
-      <Routes>
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
 
         {/* =================================================
             LOGIN
@@ -93,6 +94,11 @@ function App() {
         <Route
           path="/login"
           element={<Login />}
+        />
+
+        <Route
+          path="/register"
+          element={<Register />}
         />
 
 
@@ -373,6 +379,16 @@ function App() {
         />
 
         <Route
+          path="/archive/create"
+          element={
+            <Navigate
+              to="/archive?action=create"
+              replace
+            />
+          }
+        />
+
+        <Route
           path="/archive/:id/edit"
           element={
             <Navigate
@@ -381,7 +397,6 @@ function App() {
             />
           }
         />
-
 
         {/* =================================================
             REPORTS
@@ -398,7 +413,6 @@ function App() {
           }
         />
 
-
         {/* =================================================
             AUDIT LOG
         ================================================= */}
@@ -413,7 +427,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
 
         {/* =================================================
             UNKNOWN PAGE
@@ -432,6 +445,7 @@ function App() {
       </Routes>
 
     </BrowserRouter>
+    </ToastProvider>
   );
 }
 

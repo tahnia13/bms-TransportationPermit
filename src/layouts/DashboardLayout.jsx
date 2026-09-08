@@ -33,27 +33,21 @@ export default function DashboardLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Retrieve user session & role
+  // User session: Eksklusif Portal Administrator
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem("transportation_user");
-      return saved ? JSON.parse(saved) : { username: "Admin", role: "Transportation Admin" };
+      const parsed = saved ? JSON.parse(saved) : null;
+      return {
+        username: parsed?.username || "Administrator",
+        role: "Transportation Admin",
+      };
     } catch {
-      return { username: "Admin", role: "Transportation Admin" };
+      return { username: "Administrator", role: "Transportation Admin" };
     }
   });
 
-  const isAdmin = currentUser.role?.toLowerCase().includes("admin");
-
-  const switchRole = (newRole) => {
-    const updated = {
-      username: newRole.includes("Admin") ? "Admin" : "Staff Operasional",
-      role: newRole,
-    };
-    localStorage.setItem("transportation_user", JSON.stringify(updated));
-    setCurrentUser(updated);
-    window.dispatchEvent(new Event("storage"));
-  };
+  const isAdmin = true;
 
   const handleLogout = () => {
     if (window.confirm("Apakah Anda yakin ingin keluar dari sistem?")) {
@@ -214,7 +208,7 @@ export default function DashboardLayout({ children }) {
     }
     return {
       title: "Transportation System",
-      badge: "PT Besmindo Makmur",
+      badge: "PT Besmindo Materi Sewatama",
       subtitle: "Enterprise permit & vehicle management system",
     };
   }, [location.pathname]);
@@ -267,8 +261,12 @@ export default function DashboardLayout({ children }) {
             className="flex items-center gap-3 group"
           >
             {/* LOGO ICON */}
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#D8FF00] to-[#bce400] text-[#12372A] shadow-md shadow-[#D8FF00]/20 ring-2 ring-white/10 group-hover:scale-105 transition-transform">
-              <span className="text-xl font-black tracking-tight">B</span>
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white p-1.5 shadow-md shadow-black/20 ring-1 ring-white/20 group-hover:scale-105 transition-transform">
+              <img
+                src="/besmindo-emblem.png"
+                alt="Besmindo Emblem"
+                className="h-full w-full object-contain"
+              />
               <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-[#12372A]" />
             </div>
 
@@ -279,12 +277,12 @@ export default function DashboardLayout({ children }) {
                   <h1 className="text-sm font-extrabold tracking-wider text-white">
                     BESMINDO
                   </h1>
-                  <span className="rounded-2xl bg-[#D8FF00]/20 px-1.5 py-0.5 text-[9px] font-bold text-[#D8FF00]">
-                    PRO
+                  <span className="rounded-md bg-[#D8FF00] px-1.5 py-0.2 text-[9px] font-black text-[#12372A]">
+                    ADMIN
                   </span>
                 </div>
-                <p className="text-[10px] font-medium tracking-wide text-emerald-200/60 truncate">
-                  Transportation System
+                <p className="text-[10px] font-medium tracking-wide text-emerald-200/80 truncate">
+                  Materi Sewatama
                 </p>
               </div>
             )}
@@ -380,17 +378,13 @@ export default function DashboardLayout({ children }) {
 
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-white">
-                  {currentUser.username}
+                <p className="truncate text-xs font-bold text-white">
+                  {currentUser.username || "Administrator"}
                 </p>
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      isAdmin ? "bg-[#D8FF00]" : "bg-sky-400"
-                    }`}
-                  />
-                  <p className="truncate text-[10px] text-emerald-200/70 font-medium">
-                    {currentUser.role}
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#D8FF00]" />
+                  <p className="truncate text-[10px] text-[#D8FF00] font-bold tracking-wide">
+                    Admin Portal
                   </p>
                 </div>
               </div>
@@ -448,7 +442,7 @@ export default function DashboardLayout({ children }) {
                   </span>
                   <span className="hidden sm:inline text-xs text-gray-400">/</span>
                   <span className="text-xs text-gray-500 font-medium truncate hidden sm:inline">
-                    PT Besmindo Makmur
+                    PT Besmindo Materi Sewatama
                   </span>
                 </div>
                 <h2 className="text-base sm:text-lg font-bold text-gray-900 truncate">
@@ -457,35 +451,9 @@ export default function DashboardLayout({ children }) {
               </div>
             </div>
 
-            {/* RIGHT: NOTIFICATIONS, ROLE SWITCHER, DATE */}
+            {/* RIGHT: NOTIFICATIONS, USER BADGE, DATE */}
             <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
-              {/* ROLE SWITCHER SELECTOR */}
-              <div className="hidden sm:flex items-center gap-1 bg-[#F5F7F6] border border-gray-200/80 p-1 rounded-2xl">
-                <button
-                  type="button"
-                  onClick={() => switchRole("Transportation Admin")}
-                  className={`rounded-2xl px-2.5 py-1 text-[11px] font-bold transition ${
-                    isAdmin
-                      ? "bg-[#12372A] text-[#D8FF00] shadow-xs"
-                      : "text-gray-500 hover:text-gray-900"
-                  }`}
-                  title="Masuk sebagai Administrator dengan hak approval penuh"
-                >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchRole("Transportation Staff")}
-                  className={`rounded-2xl px-2.5 py-1 text-[11px] font-bold transition ${
-                    !isAdmin
-                      ? "bg-[#12372A] text-[#D8FF00] shadow-xs"
-                      : "text-gray-500 hover:text-gray-900"
-                  }`}
-                  title="Masuk sebagai Staff Operasional (Pengaju Izin)"
-                >
-                  Staff
-                </button>
-              </div>
+
 
               {/* NOTIFICATION CENTER */}
               <div className="relative" ref={notifRef}>
@@ -631,15 +599,20 @@ export default function DashboardLayout({ children }) {
 
               {/* USER BADGE */}
               <div className="flex items-center gap-2.5 pl-1 sm:pl-2 border-l border-gray-200">
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#12372A] text-[#D8FF00] font-bold text-sm shadow-xs ring-2 ring-[#D8FF00]/40">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#12372A] text-[#D8FF00] font-black text-sm shadow-xs ring-2 ring-[#D8FF00]/40">
                   {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : "A"}
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-xs font-bold text-gray-800 leading-tight">
-                    {currentUser.username}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-extrabold text-gray-800 leading-tight">
+                      {currentUser.username || "Administrator"}
+                    </p>
+                    <span className="rounded-md bg-[#12372A] px-1.5 py-0.2 text-[9px] font-black text-[#D8FF00]">
+                      ADMIN
+                    </span>
+                  </div>
                   <p className="text-[10px] text-gray-500 font-medium leading-none mt-0.5">
-                    {currentUser.role}
+                    Transportation Admin
                   </p>
                 </div>
               </div>

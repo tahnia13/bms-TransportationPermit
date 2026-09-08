@@ -26,8 +26,10 @@ import {
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
 import EmailModal from "../../components/EmailModal";
+import { useToast } from "../../components/Toast";
 
 export default function Reports() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState("permits"); // 'permits' | 'fleet' | 'drivers' | 'trips'
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -181,7 +183,7 @@ export default function Reports() {
   // Export to Excel (.xlsx)
   const exportToExcel = () => {
     if (filteredPermits.length === 0) {
-      alert("Tidak ada data permit untuk diekspor.");
+      toast.warning("Tidak ada data permit untuk diekspor.");
       return;
     }
 
@@ -221,6 +223,8 @@ export default function Reports() {
       `Laporan_Eksekutif_Besmindo_${new Date().toISOString().slice(0, 10)}.xlsx`
     );
 
+    toast.success(`Laporan ${rows.length} data permit berhasil diekspor ke Excel.`);
+
     // Audit log entry for export
     api.createAuditLog({
       action: "EXPORT",
@@ -236,7 +240,7 @@ export default function Reports() {
     api.createAuditLog({
       action: "EXPORT",
       module: "Report",
-      description: "Menghasilkan format cetak Laporan Resmi Eksekutif PT Besmindo Makmur (PDF)",
+      description: "Menghasilkan format cetak Laporan Resmi Eksekutif PT Besmindo Materi Sewatama (PDF)",
       user_name: currentUser.username,
       user_role: currentUser.role,
     });
@@ -575,7 +579,7 @@ export default function Reports() {
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 print:hidden">
               <div>
                 <span className="text-xs font-bold text-gray-500">Pratinjau Dokumen Eksekutif (PDF)</span>
-                <p className="text-[11px] text-gray-400">Format cetak resmi PT Besmindo Makmur</p>
+                <p className="text-[11px] text-gray-400">Format cetak resmi PT Besmindo Materi Sewatama</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -598,14 +602,13 @@ export default function Reports() {
             {/* OFFICIAL LETTERHEAD */}
             <div className="border-b-2 border-[#12372A] pb-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#12372A] text-[#D8FF00] font-black text-2xl">
-                  B
-                </div>
-                <div>
-                  <h2 className="text-lg font-black tracking-wide text-[#12372A]">
-                    PT BESMINDO MAKMUR
-                  </h2>
-                  <p className="text-[11px] font-bold text-gray-700">
+                <img
+                  src="/besmindo-logo.png"
+                  alt="PT Besmindo Materi Sewatama"
+                  className="h-14 w-auto object-contain"
+                />
+                <div className="border-l-2 border-gray-200 pl-3">
+                  <p className="text-[11px] font-black text-[#12372A] tracking-wider uppercase">
                     DEPARTEMEN OPERASIONAL TRANSPORTASI & LOGISTIK RIG
                   </p>
                   <p className="text-[10px] text-gray-500">
@@ -687,10 +690,10 @@ export default function Reports() {
             {/* OFFICIAL SIGNATURE SHEET */}
             <div className="grid grid-cols-3 pt-8 text-xs text-center border-t border-gray-200">
               <div className="space-y-12">
-                <p className="font-bold text-gray-700">Disiapkan Oleh (Staff):</p>
+                <p className="font-bold text-gray-700">Disiapkan Oleh (Administrator):</p>
                 <div>
-                  <p className="font-bold text-gray-900 underline">{currentUser.username}</p>
-                  <p className="text-[10px] text-gray-500">Staff Departemen Transportasi</p>
+                  <p className="font-bold text-gray-900 underline">{currentUser.username || "Transportation Admin"}</p>
+                  <p className="text-[10px] text-gray-500">Transportation Administrator</p>
                 </div>
               </div>
 
@@ -706,7 +709,7 @@ export default function Reports() {
                 <p className="font-bold text-gray-700">Disetujui Oleh (Otorisator):</p>
                 <div>
                   <p className="font-bold text-gray-900 underline">Kepala Departemen Transportasi</p>
-                  <p className="text-[10px] text-gray-500">PT Besmindo Makmur</p>
+                  <p className="text-[10px] text-gray-500">PT Besmindo Materi Sewatama</p>
                 </div>
               </div>
             </div>

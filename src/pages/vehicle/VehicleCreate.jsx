@@ -5,6 +5,7 @@ import {
   Save,
 } from "lucide-react";
 import { api } from "../../services/api";
+import { useToast } from "../../components/Toast";
 
 const rigOptions = [
   "02", "03", "03A", "5", "6", "7", "8", "10", "11",
@@ -22,6 +23,7 @@ const categorySuggestions = [
 
 export default function VehicleCreate() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     plateNumber: "",
@@ -59,10 +61,11 @@ export default function VehicleCreate() {
       };
 
       await api.createVehicle(payload);
-      alert("Kendaraan berhasil didaftarkan ke sistem armada.");
+      toast.success("Kendaraan berhasil didaftarkan ke sistem armada.");
       navigate("/vehicles");
     } catch (err) {
       console.error("Create vehicle error:", err);
+      toast.error(err.message || "Gagal menambahkan kendaraan.");
       setErrorMessage(err.message || "Gagal menambahkan kendaraan.");
     } finally {
       setLoading(false);
@@ -115,7 +118,7 @@ export default function VehicleCreate() {
               Pratinjau Plat Nomor Armada
             </span>
             <p className="text-xs text-gray-500 mt-0.5">
-              Standar format plat nomor operasional PT Besmindo Makmur
+              Standar format plat nomor operasional PT Besmindo Materi Sewatama
             </p>
           </div>
 

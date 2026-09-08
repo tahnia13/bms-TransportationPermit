@@ -202,7 +202,7 @@ class PermitController extends Controller
         $permit = Permit::findOrFail($id);
 
         $approver = $request->input('approver', $request->input('current_user_name', 'Transportation Admin'));
-        $notes = $request->input('approval_notes', 'Disetujui. Memenuhi persyaratan operasional dan keselamatan K3 PT Besmindo Makmur.');
+        $notes = $request->input('approval_notes', 'Disetujui. Memenuhi persyaratan operasional dan keselamatan K3 PT Besmindo Materi Sewatama.');
 
         $permit->update([
             'status' => 'Approved',

@@ -9,9 +9,11 @@ import {
   FileText,
   X,
 } from "lucide-react";
+import { useToast } from "../../components/Toast";
 
 function ArchiveCreate() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   // =====================================================
   // STATE
@@ -76,9 +78,7 @@ function ArchiveCreate() {
       file,
     });
 
-    alert(
-      "Document berhasil ditambahkan!"
-    );
+    toast.success("Document berhasil ditambahkan!");
 
     navigate("/archive");
   };

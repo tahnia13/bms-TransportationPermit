@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
+import { useToast } from "../../components/Toast";
 
 const rigOptions = [
   "All",
@@ -24,6 +25,7 @@ const rigOptions = [
 ];
 
 export default function DriverList() {
+  const toast = useToast();
   const [drivers, setDrivers] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedRig, setSelectedRig] = useState("All");
@@ -166,10 +168,10 @@ export default function DriverList() {
       await api.deleteDriver(driver.databaseId);
       setDrivers((prev) => prev.filter((d) => d.databaseId !== driver.databaseId));
       if (selectedDriver?.databaseId === driver.databaseId) handleClose();
-      alert("Pengemudi berhasil dihapus.");
+      toast.success("Pengemudi berhasil dihapus.");
     } catch (err) {
       console.error("Delete driver error:", err);
-      alert(err.message || "Gagal menghapus driver.");
+      toast.error(err.message || "Gagal menghapus driver.");
     }
   };
 
@@ -226,10 +228,10 @@ export default function DriverList() {
       );
       setSelectedDriver(editForm);
       setCardMode("view");
-      alert("Data pengemudi berhasil diperbarui.");
+      toast.success("Data pengemudi berhasil diperbarui.");
     } catch (err) {
       console.error("Update driver error:", err);
-      alert(err.message || "Gagal memperbarui data driver.");
+      toast.error(err.message || "Gagal memperbarui data driver.");
     } finally {
       setSaving(false);
     }

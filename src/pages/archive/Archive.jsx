@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
+import { useToast } from "../../components/Toast";
 
 const categories = [
   "All",
@@ -31,6 +33,8 @@ const categories = [
 ];
 
 export default function Archive() {
+  const toast = useToast();
+  const location = useLocation();
   const [archives, setArchives] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -45,27 +49,21 @@ export default function Archive() {
   const [uploadedFileName, setUploadedFileName] = useState("");
 
   // Role detection
-  const [currentUser, setCurrentUser] = useState(() => {
+  // User session: Eksklusif Portal Administrator
+  const [currentUser] = useState(() => {
     try {
       const saved = localStorage.getItem("transportation_user");
-      return saved ? JSON.parse(saved) : { username: "Admin", role: "Transportation Admin" };
+      const parsed = saved ? JSON.parse(saved) : null;
+      return {
+        username: parsed?.username || "Administrator",
+        role: "Transportation Admin",
+      };
     } catch {
-      return { username: "Admin", role: "Transportation Admin" };
+      return { username: "Administrator", role: "Transportation Admin" };
     }
   });
 
-  const isAdmin = currentUser.role?.toLowerCase().includes("admin");
-
-  useEffect(() => {
-    const handleStorage = () => {
-      try {
-        const saved = localStorage.getItem("transportation_user");
-        if (saved) setCurrentUser(JSON.parse(saved));
-      } catch {}
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  const isAdmin = true;
 
   const loadArchives = async () => {
     try {
@@ -86,7 +84,7 @@ export default function Archive() {
         documentNumber: a.document_number || `DOC-${a.id}`,
         title: a.title || "Dokumen Transportasi",
         category: a.category || "Permit",
-        uploadedBy: a.uploaded_by || "Staff",
+        uploadedBy: a.uploaded_by || "Administrator",
         date: a.archive_date || a.created_at || "",
         status: a.status || "Active",
         description: a.description || "",
@@ -109,6 +107,13 @@ export default function Archive() {
   useEffect(() => {
     loadArchives();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("action") === "create") {
+      handleAdd();
+    }
+  }, [location.search]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "-";
@@ -180,7 +185,7 @@ export default function Archive() {
       documentNumber: `DOC-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
       title: "",
       category: "Permit",
-      uploadedBy: currentUser.username || "Staff Operasional",
+      uploadedBy: currentUser.username || "Administrator",
       date: new Date().toISOString().substring(0, 10),
       status: "Active",
       description: "",
@@ -214,7 +219,7 @@ export default function Archive() {
 
   const handleDelete = async (a) => {
     if (!isAdmin) {
-      alert("Akses Ditolak: Hanya Administrator yang berhak menghapus berkas arsip.");
+      toast.warning("Akses Ditolak: Hanya Administrator yang berhak menghapus berkas arsip.");
       return;
     }
 
@@ -224,10 +229,10 @@ export default function Archive() {
       await api.deleteArchive(a.databaseId);
       setArchives((prev) => prev.filter((item) => item.databaseId !== a.databaseId));
       if (selectedArchive?.databaseId === a.databaseId) handleClose();
-      alert("Berkas arsip fisik berhasil dihapus.");
+      toast.success("Berkas arsip fisik berhasil dihapus.");
     } catch (err) {
       console.error("Delete archive error:", err);
-      alert(err.message || "Gagal menghapus berkas arsip.");
+      toast.error(err.message || "Gagal menghapus berkas arsip.");
     }
   };
 
@@ -236,7 +241,7 @@ export default function Archive() {
       await api.downloadArchive(a.databaseId, a.fileName || `${a.documentNumber}.pdf`);
     } catch (err) {
       console.error("Download error:", err);
-      alert(err?.message || "Berkas fisik belum diunggah atau tidak ditemukan di penyimpanan server.");
+      toast.error(err?.message || "Berkas fisik belum diunggah atau tidak ditemukan di penyimpanan server.");
     }
   };
 
@@ -286,7 +291,7 @@ export default function Archive() {
           documentNumber: created.document_number,
           title: created.title,
           category: created.category,
-          uploadedBy: created.uploaded_by || "Staff",
+          uploadedBy: created.uploaded_by || "Administrator",
           date: created.archive_date || new Date().toISOString(),
           status: created.status || "Active",
           description: created.description || "",
@@ -297,7 +302,7 @@ export default function Archive() {
           fileUrl: created.file_url,
         };
         setArchives((prev) => [mapped, ...prev]);
-        alert("Dokumen fisik berhasil diunggah ke repositori arsip.");
+        toast.success("Dokumen fisik berhasil diunggah ke repositori arsip.");
       } else {
         const res = await api.updateArchiveWithFile(form.id, formData);
         const updated = res.data || {};
@@ -314,12 +319,12 @@ export default function Archive() {
               : a
           )
         );
-        alert("Data arsip berhasil diperbarui.");
+        toast.success("Data arsip berhasil diperbarui.");
       }
       handleClose();
     } catch (err) {
       console.error("Save archive error:", err);
-      alert(err.message || "Gagal menyimpan berkas arsip.");
+      toast.error(err.message || "Gagal menyimpan berkas arsip.");
     } finally {
       setSaving(false);
     }
