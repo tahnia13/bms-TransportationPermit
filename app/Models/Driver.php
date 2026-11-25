@@ -11,12 +11,22 @@ class Driver extends Model
 
     protected $fillable = [
         'name',
+        'badge_number',
+        'position',
         'license_number',
         'license_type',
+        'photo_url',
+        'nik_ktp',
+        'blood_type',
         'phone',
+        'email',
+        'address',
+        'emergency_contact',
         'expiry_date',
         'training_date',
+        'certification',
         'rig',
+        'crew',
         'status',
         'description',
     ];

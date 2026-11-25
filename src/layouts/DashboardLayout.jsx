@@ -5,8 +5,6 @@ import {
   FileCheck2,
   Car,
   UserRound,
-  MapPinned,
-  FolderOpen,
   BarChart3,
   History,
   Menu,
@@ -121,18 +119,6 @@ export default function DashboardLayout({ children }) {
       description: "Drivers & licenses",
     },
     {
-      title: "Trips",
-      icon: MapPinned,
-      path: "/trips",
-      description: "Schedules & routes",
-    },
-    {
-      title: "Digital Archive",
-      icon: FolderOpen,
-      path: "/archive",
-      description: "Dokumen & berkas fisik",
-    },
-    {
       title: "Advanced Reports",
       icon: BarChart3,
       path: "/reports",
@@ -176,20 +162,6 @@ export default function DashboardLayout({ children }) {
         title: path.includes("/create") ? "Registrasi Pengemudi" : "Direktori Driver & SIM",
         badge: "Personnel & Safety",
         subtitle: "Pantau pengemudi aktif, masa berlaku SIM B2, dan catatan K3.",
-      };
-    }
-    if (path.startsWith("/trips")) {
-      return {
-        title: path.includes("/create") ? "Jadwal Trip Baru" : "Trip Management & Logistik",
-        badge: "Operations",
-        subtitle: "Jadwal perjalanan, rute rig, penugasan armada, dan status muatan.",
-      };
-    }
-    if (path.startsWith("/archive")) {
-      return {
-        title: "Digital Archive & Dokumen Fisik",
-        badge: "Document Repository",
-        subtitle: "Penyimpanan berkas fisik scan surat izin, sertifikat, dan laporan inspeksi.",
       };
     }
     if (path.startsWith("/reports")) {

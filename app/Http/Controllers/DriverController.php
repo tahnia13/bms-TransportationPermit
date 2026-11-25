@@ -29,67 +29,34 @@ class DriverController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-
-            'license_number' =>
-                'required|string|max:100|unique:drivers,license_number',
-
-            'license_type' =>
-                'nullable|string|max:50',
-
-            'phone' =>
-                'nullable|string|max:30',
-
-            'expiry_date' =>
-                'nullable|date',
-
-            'training_date' =>
-                'nullable|date',
-
-            'rig' =>
-                'nullable|string|max:20',
-
-            'status' =>
-                'nullable|in:Active,Inactive,Pending,active,inactive,pending',
-
-            'description' =>
-                'nullable|string',
+            'badge_number' => 'nullable|string|max:50',
+            'position' => 'nullable|string|max:100',
+            'license_number' => 'required|string|max:100',
+            'license_type' => 'nullable|string|max:50',
+            'nik_ktp' => 'nullable|string|max:50',
+            'blood_type' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|string|max:150',
+            'address' => 'nullable|string',
+            'emergency_contact' => 'nullable|string|max:100',
+            'expiry_date' => 'nullable|date',
+            'training_date' => 'nullable|date',
+            'certification' => 'nullable|string|max:255',
+            'rig' => 'nullable|string|max:50',
+            'crew' => 'nullable|string|max:50',
+            'status' => 'nullable|string',
+            'description' => 'nullable|string',
         ]);
 
         $status = $validated['status'] ?? 'Active';
+        if (strtolower($status) === 'on leave') {
+            $status = 'On Leave';
+        } else {
+            $status = ucfirst(strtolower($status));
+        }
+        $validated['status'] = $status;
 
-        /*
-         * Samakan format status dengan data UI lama:
-         * Active / Inactive / Pending
-         */
-        $status = ucfirst(strtolower($status));
-
-        $driver = Driver::create([
-            'name' => $validated['name'],
-
-            'license_number' =>
-                $validated['license_number'],
-
-            'license_type' =>
-                $validated['license_type'] ?? null,
-
-            'phone' =>
-                $validated['phone'] ?? null,
-
-            'expiry_date' =>
-                $validated['expiry_date'] ?? null,
-
-            'training_date' =>
-                $validated['training_date'] ?? null,
-
-            'rig' =>
-                $validated['rig'] ?? null,
-
-            'status' =>
-                $status,
-
-            'description' =>
-                $validated['description'] ?? null,
-        ]);
+        $driver = Driver::create($validated);
 
         return response()->json([
             'success' => true,
@@ -137,63 +104,34 @@ class DriverController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-
-            'license_number' =>
-                'required|string|max:100|unique:drivers,license_number,' . $id,
-
-            'license_type' =>
-                'nullable|string|max:50',
-
-            'phone' =>
-                'nullable|string|max:30',
-
-            'expiry_date' =>
-                'nullable|date',
-
-            'training_date' =>
-                'nullable|date',
-
-            'rig' =>
-                'nullable|string|max:20',
-
-            'status' =>
-                'nullable|in:Active,Inactive,Pending,active,inactive,pending',
-
-            'description' =>
-                'nullable|string',
+            'badge_number' => 'nullable|string|max:50',
+            'position' => 'nullable|string|max:100',
+            'license_number' => 'required|string|max:100',
+            'license_type' => 'nullable|string|max:50',
+            'nik_ktp' => 'nullable|string|max:50',
+            'blood_type' => 'nullable|string|max:10',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|string|max:150',
+            'address' => 'nullable|string',
+            'emergency_contact' => 'nullable|string|max:100',
+            'expiry_date' => 'nullable|date',
+            'training_date' => 'nullable|date',
+            'certification' => 'nullable|string|max:255',
+            'rig' => 'nullable|string|max:50',
+            'crew' => 'nullable|string|max:50',
+            'status' => 'nullable|string',
+            'description' => 'nullable|string',
         ]);
 
-        $status = $validated['status'] ?? $driver->status;
-        $status = ucfirst(strtolower($status));
+        if (isset($validated['status'])) {
+            if (strtolower($validated['status']) === 'on leave') {
+                $validated['status'] = 'On Leave';
+            } else {
+                $validated['status'] = ucfirst(strtolower($validated['status']));
+            }
+        }
 
-        $driver->update([
-            'name' =>
-                $validated['name'],
-
-            'license_number' =>
-                $validated['license_number'],
-
-            'license_type' =>
-                $validated['license_type'] ?? null,
-
-            'phone' =>
-                $validated['phone'] ?? null,
-
-            'expiry_date' =>
-                $validated['expiry_date'] ?? null,
-
-            'training_date' =>
-                $validated['training_date'] ?? null,
-
-            'rig' =>
-                $validated['rig'] ?? null,
-
-            'status' =>
-                $status,
-
-            'description' =>
-                $validated['description'] ?? null,
-        ]);
+        $driver->update($validated);
 
         return response()->json([
             'success' => true,

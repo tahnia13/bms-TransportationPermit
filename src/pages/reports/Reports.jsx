@@ -16,7 +16,6 @@ import {
   FileText,
   Car,
   UserRound,
-  MapPinned,
   ShieldCheck,
   Building2,
   Mail,
@@ -25,12 +24,24 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
+import FilterSelectWithCustom from "../../components/FilterSelectWithCustom";
 import EmailModal from "../../components/EmailModal";
 import { useToast } from "../../components/Toast";
 
+const defaultDepartmentOptions = [
+  "All",
+  "Operation Rig",
+  "Transportation",
+  "Maintenance & Workshop",
+  "HSE / K3LL",
+  "Logistics & Yard",
+  "General Affair",
+];
+
 export default function Reports() {
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState("permits"); // 'permits' | 'fleet' | 'drivers' | 'trips'
+  const [activeTab, setActiveTab] = useState("permits"); // 'permits' | 'fleet' | 'drivers'
+  const [activeCard, setActiveCard] = useState(null); // 'total' | 'approved' | 'fleet' | 'expired'
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [startDate, setStartDate] = useState("");
@@ -40,8 +51,6 @@ export default function Reports() {
   const [permits, setPermits] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  const [trips, setTrips] = useState([]);
-  const [archives, setArchives] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -63,12 +72,10 @@ export default function Reports() {
       setLoading(true);
       setError("");
 
-      const [pRes, vRes, dRes, tRes, aRes] = await Promise.all([
+      const [pRes, vRes, dRes] = await Promise.all([
         api.getPermits(),
         api.getVehicles(),
         api.getDrivers(),
-        api.getTrips(),
-        api.getArchives(),
       ]);
 
       const extract = (res) =>
@@ -77,8 +84,6 @@ export default function Reports() {
       setPermits(extract(pRes));
       setVehicles(extract(vRes));
       setDrivers(extract(dRes));
-      setTrips(extract(tRes));
-      setArchives(extract(aRes));
     } catch (err) {
       console.error("Failed to load report data:", err);
       setError(err?.message || "Gagal mengambil data laporan.");
@@ -110,6 +115,15 @@ export default function Reports() {
     const kw = search.toLowerCase().trim();
 
     return permits.filter((p) => {
+      // KPI card quick-filter
+      if (activeCard === "approved") {
+        const s = String(p.status || "").toLowerCase();
+        if (s !== "approved" && s !== "active") return false;
+      } else if (activeCard === "expired") {
+        const s = String(p.status || "").toLowerCase();
+        if (s !== "expired" && s !== "expiring soon") return false;
+      }
+
       // Status filter
       if (statusFilter !== "All") {
         if (String(p.status || "").toLowerCase() !== statusFilter.toLowerCase()) {
@@ -144,7 +158,38 @@ export default function Reports() {
         String(p.destination || "").toLowerCase().includes(kw)
       );
     });
-  }, [permits, search, statusFilter, deptFilter, startDate, endDate]);
+  }, [permits, search, statusFilter, deptFilter, startDate, endDate, activeCard]);
+
+  // Process Fleet with search & quick card filter
+  const filteredVehicles = useMemo(() => {
+    const kw = search.toLowerCase().trim();
+    return vehicles.filter((v) => {
+      if (activeCard === "fleet") {
+        if (String(v.status || "Active").toLowerCase() !== "active") return false;
+      }
+      if (!kw) return true;
+      return (
+        String(v.plate_number || v.plate || v.name || "").toLowerCase().includes(kw) ||
+        String(v.type || "").toLowerCase().includes(kw) ||
+        String(v.rig || "").toLowerCase().includes(kw) ||
+        String(v.status || "").toLowerCase().includes(kw)
+      );
+    });
+  }, [vehicles, search, activeCard]);
+
+  // Process Drivers with search filter
+  const filteredDrivers = useMemo(() => {
+    const kw = search.toLowerCase().trim();
+    return drivers.filter((d) => {
+      if (!kw) return true;
+      return (
+        String(d.name || "").toLowerCase().includes(kw) ||
+        String(d.license_number || "").toLowerCase().includes(kw) ||
+        String(d.license_type || "").toLowerCase().includes(kw) ||
+        String(d.status || "").toLowerCase().includes(kw)
+      );
+    });
+  }, [drivers, search]);
 
   // Executive KPI Statistics
   const kpis = useMemo(() => {
@@ -176,9 +221,8 @@ export default function Reports() {
       activeVehicles,
       totalVehicles: vehicles.length,
       fleetUtil,
-      totalTrips: trips.length,
     };
-  }, [permits, vehicles, trips]);
+  }, [permits, vehicles]);
 
   // Export to Excel (.xlsx)
   const exportToExcel = () => {
@@ -291,7 +335,24 @@ export default function Reports() {
 
       {/* KPI CARDS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-gray-200/80 bg-white p-4.5 shadow-xs">
+        {/* Total Volume */}
+        <button
+          type="button"
+          onClick={() => {
+            if (activeCard === "total") {
+              setActiveCard(null);
+            } else {
+              setActiveCard("total");
+              setActiveTab("permits");
+              setStatusFilter("All");
+            }
+          }}
+          className={`rounded-2xl border p-4.5 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "total"
+              ? "border-[#12372A] bg-[#12372A]/5 ring-2 ring-[#12372A]/30"
+              : "border-gray-200/80 bg-white hover:border-gray-300"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Total Volume Permit</p>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-[#12372A]">{kpis.totalPermits}</h3>
@@ -300,9 +361,30 @@ export default function Reports() {
           <div className="mt-2 text-[10px] text-gray-500 font-medium">
             Tingkat Persetujuan: <span className="font-bold text-emerald-600">{kpis.approvalRate}%</span>
           </div>
-        </div>
+          {activeCard === "total" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-[#12372A] bg-[#D8FF00] px-2 py-0.5 rounded-full">
+              ▼ Menampilkan Semua
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4.5 shadow-xs">
+        {/* Approved */}
+        <button
+          type="button"
+          onClick={() => {
+            if (activeCard === "approved") {
+              setActiveCard(null);
+            } else {
+              setActiveCard("approved");
+              setActiveTab("permits");
+            }
+          }}
+          className={`rounded-2xl border p-4.5 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "approved"
+              ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-300"
+              : "border-emerald-100 bg-emerald-50/40 hover:border-emerald-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Permit Disetujui (Approved)</p>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-emerald-800">{kpis.approved}</h3>
@@ -311,9 +393,30 @@ export default function Reports() {
           <div className="mt-2 text-[10px] text-emerald-700 font-medium">
             Pending: <span className="font-bold">{kpis.pending}</span> | Ditolak: <span className="font-bold">{kpis.rejected}</span>
           </div>
-        </div>
+          {activeCard === "approved" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-emerald-800 bg-emerald-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Approved
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4.5 shadow-xs">
+        {/* Fleet Readiness */}
+        <button
+          type="button"
+          onClick={() => {
+            if (activeCard === "fleet") {
+              setActiveCard(null);
+            } else {
+              setActiveCard("fleet");
+              setActiveTab("fleet");
+            }
+          }}
+          className={`rounded-2xl border p-4.5 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "fleet"
+              ? "border-sky-500 bg-sky-50 ring-2 ring-sky-300"
+              : "border-sky-100 bg-sky-50/40 hover:border-sky-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-sky-700">Kesiapan Armada & Rig</p>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-sky-800">{kpis.fleetUtil}%</h3>
@@ -322,9 +425,30 @@ export default function Reports() {
           <div className="mt-2 text-[10px] text-sky-700 font-medium">
             Armada siap mobilisasi rig
           </div>
-        </div>
+          {activeCard === "fleet" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-sky-800 bg-sky-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Armada Operasional
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4.5 shadow-xs">
+        {/* Expired / Expiring */}
+        <button
+          type="button"
+          onClick={() => {
+            if (activeCard === "expired") {
+              setActiveCard(null);
+            } else {
+              setActiveCard("expired");
+              setActiveTab("permits");
+            }
+          }}
+          className={`rounded-2xl border p-4.5 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "expired"
+              ? "border-amber-500 bg-amber-50 ring-2 ring-amber-300"
+              : "border-amber-100 bg-amber-50/40 hover:border-amber-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Peringatan Kedaluwarsa</p>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-amber-800">{kpis.expired}</h3>
@@ -333,7 +457,12 @@ export default function Reports() {
           <div className="mt-2 text-[10px] text-amber-700 font-medium">
             Perlu pembaruan dokumen berkala
           </div>
-        </div>
+          {activeCard === "expired" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Expired / Segera Habis
+            </span>
+          )}
+        </button>
       </div>
 
       {/* REPORT TABS & ADVANCED MULTI-FILTER */}
@@ -379,7 +508,7 @@ export default function Reports() {
         </div>
 
         {/* MULTI-FILTER BAR */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 text-xs">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 text-xs items-center">
           {/* SEARCH */}
           <div className="relative">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -406,6 +535,19 @@ export default function Reports() {
               <option value="Expired">Expired (Kedaluwarsa)</option>
               <option value="Rejected">Rejected (Ditolak)</option>
             </select>
+          </div>
+
+          {/* DEPARTMENT FILTER */}
+          <div>
+            <FilterSelectWithCustom
+              value={deptFilter}
+              onChange={setDeptFilter}
+              defaultOptions={defaultDepartmentOptions}
+              storageKey="report_department"
+              placeholderAll="Semua Departemen"
+              className="w-full"
+              selectClassName="w-full rounded-2xl border border-gray-200 bg-[#F5F7F6] py-2.5 px-3 text-xs outline-none focus:border-[#12372A] focus:bg-white font-medium"
+            />
           </div>
 
           {/* START DATE */}
@@ -516,18 +658,26 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {vehicles.map((v) => (
-                  <tr key={v.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-3.5 pl-6 font-bold text-[#12372A]">
-                      {v.plate_number || v.name}
-                    </td>
-                    <td className="py-3.5 font-medium text-gray-700">{v.type || "Heavy Truck"}</td>
-                    <td className="py-3.5 font-semibold text-gray-800">{v.rig || "Rig Minas #02"}</td>
-                    <td className="py-3.5">
-                      <StatusBadge status={v.status || "Active"} size="sm" />
+                {filteredVehicles.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="py-12 text-center text-gray-400 font-semibold">
+                      Tidak ada data armada yang sesuai filter.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredVehicles.map((v) => (
+                    <tr key={v.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="py-3.5 pl-6 font-bold text-[#12372A]">
+                        {v.plate_number || v.plate || v.name}
+                      </td>
+                      <td className="py-3.5 font-medium text-gray-700">{v.type || "Heavy Truck"}</td>
+                      <td className="py-3.5 font-semibold text-gray-800">{v.rig || "Rig Minas #02"}</td>
+                      <td className="py-3.5">
+                        <StatusBadge status={v.status || "Active"} size="sm" />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -547,16 +697,24 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {drivers.map((d) => (
-                  <tr key={d.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-3.5 pl-6 font-bold text-[#12372A]">{d.name}</td>
-                    <td className="py-3.5 font-mono text-gray-700">{d.license_number || `SIM-${d.id}982`}</td>
-                    <td className="py-3.5 font-medium text-gray-700">{d.license_type || "B2 Umum"}</td>
-                    <td className="py-3.5">
-                      <StatusBadge status={d.status || "Active"} size="sm" />
+                {filteredDrivers.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="py-12 text-center text-gray-400 font-semibold">
+                      Tidak ada data pengemudi yang sesuai filter.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredDrivers.map((d) => (
+                    <tr key={d.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="py-3.5 pl-6 font-bold text-[#12372A]">{d.name}</td>
+                      <td className="py-3.5 font-mono text-gray-700">{d.license_number || `SIM-${d.id}982`}</td>
+                      <td className="py-3.5 font-medium text-gray-700">{d.license_type || "B2 Umum"}</td>
+                      <td className="py-3.5">
+                        <StatusBadge status={d.status || "Active"} size="sm" />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

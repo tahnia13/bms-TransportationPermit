@@ -16,7 +16,24 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
+import FilterSelectWithCustom from "../../components/FilterSelectWithCustom";
+import FormSelectWithCustom from "../../components/FormSelectWithCustom";
 import { useToast } from "../../components/Toast";
+
+const defaultDestinationOptions = [
+  "All",
+  "RIG BMS 02",
+  "RIG BMS 03",
+  "RIG BMS 05",
+  "RIG BMS 07",
+  "RIG BMS 10",
+  "RIG BMS 15",
+  "RIG BMS 18",
+  "YARD DURI",
+  "YARD DUMAI",
+  "MINAS WORKSHOP",
+  "POOL PEKANBARU",
+];
 
 export default function TripList() {
   const toast = useToast();
@@ -28,6 +45,7 @@ export default function TripList() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedDestination, setSelectedDestination] = useState("All");
 
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -35,6 +53,7 @@ export default function TripList() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [activeCard, setActiveCard] = useState(null); // 'total' | 'planned' | 'intransit' | 'completed'
 
   const loadTrips = async () => {
     try {
@@ -124,8 +143,28 @@ export default function TripList() {
     const keyword = search.toLowerCase().trim();
 
     return trips.filter((t) => {
+      // KPI card quick-filter
+      if (activeCard === "planned") {
+        const s = String(t.status || "").toLowerCase();
+        if (s !== "planned" && s !== "scheduled") return false;
+      } else if (activeCard === "intransit") {
+        const s = String(t.status || "").toLowerCase();
+        if (s !== "in transit" && s !== "running") return false;
+      } else if (activeCard === "completed") {
+        if (String(t.status || "").toLowerCase() !== "completed") return false;
+      }
+
       if (statusFilter !== "All") {
         if (String(t.status).toLowerCase() !== statusFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Destination filter
+      if (selectedDestination !== "All") {
+        const dest = String(t.destination || "").toLowerCase().trim();
+        const target = String(selectedDestination).toLowerCase().trim();
+        if (!dest.includes(target) && dest !== target) {
           return false;
         }
       }
@@ -142,7 +181,7 @@ export default function TripList() {
         t.status.toLowerCase().includes(keyword)
       );
     });
-  }, [trips, search, statusFilter]);
+  }, [trips, search, statusFilter, selectedDestination, activeCard]);
 
   const handleDelete = async (trip) => {
     if (!window.confirm(`Hapus jadwal perjalanan trip ${trip.tripNumber}?`)) return;
@@ -264,7 +303,16 @@ export default function TripList() {
 
       {/* KPI METRICS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-gray-200/70 bg-white p-4.5 shadow-xs">
+        {/* Total */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "total" ? null : "total")}
+          className={`rounded-2xl border p-4 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "total"
+              ? "border-[#12372A] bg-[#12372A]/5 ring-2 ring-[#12372A]/30"
+              : "border-gray-200/70 bg-white hover:border-gray-300"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
             Total Perjalanan
           </p>
@@ -272,9 +320,23 @@ export default function TripList() {
             <h3 className="text-2xl font-extrabold text-[#12372A]">{stats.total}</h3>
             <span className="text-xs text-gray-400">Semua trip</span>
           </div>
-        </div>
+          {activeCard === "total" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-[#12372A] bg-[#D8FF00] px-2 py-0.5 rounded-full">
+              ▼ Menampilkan Semua
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4.5 shadow-xs">
+        {/* Planned */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "planned" ? null : "planned")}
+          className={`rounded-2xl border p-4 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "planned"
+              ? "border-amber-500 bg-amber-50 ring-2 ring-amber-300"
+              : "border-amber-100 bg-amber-50/40 hover:border-amber-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-amber-600">
             Dijadwalkan (Planned)
           </p>
@@ -282,9 +344,23 @@ export default function TripList() {
             <h3 className="text-2xl font-extrabold text-amber-700">{stats.planned}</h3>
             <span className="text-xs text-amber-600 font-semibold">Siap Berangkat</span>
           </div>
-        </div>
+          {activeCard === "planned" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Planned
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4.5 shadow-xs">
+        {/* In Transit */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "intransit" ? null : "intransit")}
+          className={`rounded-2xl border p-4 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "intransit"
+              ? "border-sky-500 bg-sky-50 ring-2 ring-sky-300"
+              : "border-sky-100 bg-sky-50/40 hover:border-sky-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-sky-600">
             Dalam Perjalanan
           </p>
@@ -292,9 +368,23 @@ export default function TripList() {
             <h3 className="text-2xl font-extrabold text-sky-700">{stats.inTransit}</h3>
             <span className="text-xs text-sky-600 font-semibold">In Transit</span>
           </div>
-        </div>
+          {activeCard === "intransit" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-sky-800 bg-sky-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: In Transit
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4.5 shadow-xs">
+        {/* Completed */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "completed" ? null : "completed")}
+          className={`rounded-2xl border p-4 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "completed"
+              ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-300"
+              : "border-emerald-100 bg-emerald-50/40 hover:border-emerald-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
             Selesai (Completed)
           </p>
@@ -302,8 +392,14 @@ export default function TripList() {
             <h3 className="text-2xl font-extrabold text-emerald-700">{stats.completed}</h3>
             <span className="text-xs text-emerald-600 font-semibold">Sukses</span>
           </div>
-        </div>
+          {activeCard === "completed" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-emerald-800 bg-emerald-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Completed
+            </span>
+          )}
+        </button>
       </div>
+
 
       {error && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-700">
@@ -332,28 +428,41 @@ export default function TripList() {
             ))}
           </div>
 
-          {/* SEARCH BAR */}
-          <div className="relative w-full sm:max-w-md">
-            <Search
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* DESTINATION FILTER WITH CUSTOM OPTIONS */}
+            <FilterSelectWithCustom
+              label="Tujuan / Rig"
+              icon={Route}
+              value={selectedDestination}
+              onChange={setSelectedDestination}
+              defaultOptions={defaultDestinationOptions}
+              storageKey="trip_destination"
+              placeholderAll="Semua Lokasi & Rig"
             />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari nomor trip, pengemudi, rute tujuan..."
-              className="w-full rounded-xl border border-gray-200 bg-gray-50/70 py-2.5 pl-10 pr-9 text-xs sm:text-sm text-gray-800 outline-none focus:border-[#12372A] focus:bg-white transition"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X size={14} />
-              </button>
-            )}
+
+            {/* SEARCH BAR */}
+            <div className="relative w-full sm:w-64">
+              <Search
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari nomor trip, supir, rute..."
+                className="w-full rounded-xl border border-gray-200 bg-gray-50/70 py-2.5 pl-10 pr-9 text-xs sm:text-sm text-gray-800 outline-none focus:border-[#12372A] focus:bg-white transition"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -679,16 +788,15 @@ export default function TripList() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Tujuan Akhir
-                  </label>
-                  <input
-                    type="text"
+                  <FormSelectWithCustom
+                    label="Tujuan Akhir"
                     name="destination"
                     value={editForm.destination}
                     onChange={handleEditChange}
                     required
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-800 outline-none focus:border-[#12372A] focus:bg-white"
+                    storageKey="trip_destination"
+                    defaultOptions={defaultDestinationOptions.filter((d) => d !== "All")}
+                    placeholder="-- Pilih Tujuan Akhir --"
                   />
                 </div>
 

@@ -259,6 +259,40 @@ export const api = {
         return handleResponse(response);
     },
 
+
+    // Upload driver baru dengan file dokumen (multipart/form-data)
+    async uploadDriver(formData) {
+        const response = await fetch(
+            `${API_URL}/drivers`,
+            {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                },
+                body: formData,
+            }
+        );
+
+        return handleResponse(response);
+    },
+
+    // Update driver dengan file dokumen (multipart, Laravel _method=PUT)
+    async updateDriverWithFile(id, formData) {
+        formData.append("_method", "PUT");
+        const response = await fetch(
+            `${API_URL}/drivers/${id}`,
+            {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                },
+                body: formData,
+            }
+        );
+
+        return handleResponse(response);
+    },
+
     // =====================================================
     // TRIP
     // =====================================================
@@ -343,62 +377,14 @@ export const api = {
 
     async getArchives(params = {}) {
         const query = new URLSearchParams();
+        if (params.search) query.append("search", params.search);
+        if (params.year) query.append("year", params.year);
+        if (params.month) query.append("month", params.month);
+        if (params.status) query.append("status", params.status);
 
-        if (params.search) {
-            query.append(
-                "search",
-                params.search
-            );
-        }
-
-        if (params.year) {
-            query.append(
-                "year",
-                params.year
-            );
-        }
-
-        if (params.month) {
-            query.append(
-                "month",
-                params.month
-            );
-        }
-
-        if (params.status) {
-            query.append(
-                "status",
-                params.status
-            );
-        }
-
-        const queryString =
-            query.toString();
-
+        const queryString = query.toString();
         const response = await fetch(
-            `${API_URL}/archive${
-                queryString
-                    ? `?${queryString}`
-                    : ""
-            }`,
-            {
-                method: "GET",
-                headers: {
-                    Accept: "application/json",
-                },
-            }
-        );
-
-        return handleResponse(response);
-    },
-
-        // =====================================================
-    // ARCHIVE
-    // =====================================================
-
-    async getArchives() {
-        const response = await fetch(
-            `${API_URL}/archives`,
+            `${API_URL}/archives${queryString ? `?${queryString}` : ""}`,
             {
                 method: "GET",
                 headers: {

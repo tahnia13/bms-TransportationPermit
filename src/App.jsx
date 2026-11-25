@@ -52,19 +52,6 @@ import DriverList from "./pages/driver/DriverList";
 import DriverCreate from "./pages/driver/DriverCreate";
 
 // =====================================================
-// TRIP
-// =====================================================
-
-import TripList from "./pages/trip/TripList";
-import TripCreate from "./pages/trip/TripCreate";
-
-// =====================================================
-// ARCHIVE
-// =====================================================
-
-import Archive from "./pages/archive/Archive";
-
-// =====================================================
 // REPORTS
 // =====================================================
 
@@ -294,109 +281,6 @@ function App() {
           }
         />
 
-
-        {/* =================================================
-            TRIPS
-        ================================================= */}
-
-        <Route
-          path="/trips"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <TripList />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/trips/create"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <TripCreate />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-
-
-        {/* =================================================
-            TRIP OLD DETAIL / EDIT URL
-        ================================================= */}
-
-        <Route
-          path="/trips/:id"
-          element={
-            <Navigate
-              to="/trips"
-              replace
-            />
-          }
-        />
-
-        <Route
-          path="/trips/:id/edit"
-          element={
-            <Navigate
-              to="/trips"
-              replace
-            />
-          }
-        />
-
-
-        {/* =================================================
-            DIGITAL ARCHIVE
-        ================================================= */}
-
-        <Route
-          path="/archive"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <Archive />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-
-
-        {/* =================================================
-            ARCHIVE OLD URL
-            Sementara diarahkan kembali ke Archive List
-        ================================================= */}
-
-        <Route
-          path="/archive/:id"
-          element={
-            <Navigate
-              to="/archive"
-              replace
-            />
-          }
-        />
-
-        <Route
-          path="/archive/create"
-          element={
-            <Navigate
-              to="/archive?action=create"
-              replace
-            />
-          }
-        />
-
-        <Route
-          path="/archive/:id/edit"
-          element={
-            <Navigate
-              to="/archive"
-              replace
-            />
-          }
-        />
 
         {/* =================================================
             REPORTS

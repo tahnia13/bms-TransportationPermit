@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
+import FilterSelectWithCustom from "../../components/FilterSelectWithCustom";
+import FormSelectWithCustom from "../../components/FormSelectWithCustom";
 import { useToast } from "../../components/Toast";
 
 const categories = [
@@ -413,22 +415,17 @@ export default function Archive() {
       {/* FILTER & SEARCH */}
       <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* CATEGORY PILLS */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {categories.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCategoryFilter(c)}
-                className={`rounded-2xl px-3.5 py-1.5 text-xs font-bold transition ${
-                  categoryFilter === c
-                    ? "bg-[#12372A] text-[#D8FF00] shadow-xs"
-                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {c === "All" ? "Semua Berkas" : c}
-              </button>
-            ))}
+          {/* CATEGORY FILTER WITH CUSTOM OPTIONS */}
+          <div className="flex items-center gap-3">
+            <FilterSelectWithCustom
+              label="Kategori Berkas"
+              icon={FolderOpen}
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              defaultOptions={categories}
+              storageKey="archive_category"
+              placeholderAll="Semua Berkas Arsip"
+            />
           </div>
 
           {/* SEARCH BAR */}
@@ -741,17 +738,15 @@ export default function Archive() {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Kategori</label>
-                  <select
+                  <FormSelectWithCustom
+                    label="Kategori"
                     name="category"
                     value={form.category}
                     onChange={handleFormChange}
-                    className="w-full rounded-2xl border border-gray-200 bg-[#F5F7F6] px-3 py-2 outline-none focus:border-[#12372A] focus:bg-white"
-                  >
-                    {categories.filter((c) => c !== "All").map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    defaultOptions={categories.filter((c) => c !== "All")}
+                    storageKey="archive_category"
+                    placeholder="-- Pilih Kategori --"
+                  />
                 </div>
               </div>
 

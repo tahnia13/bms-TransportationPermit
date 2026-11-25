@@ -4,8 +4,6 @@ import {
   FileCheck2,
   Car,
   Users,
-  Route,
-  Archive,
   CheckCircle2,
   Clock3,
   AlertTriangle,
@@ -15,6 +13,10 @@ import {
   Sparkles,
   ChevronRight,
   TrendingUp,
+  ShieldCheck,
+  AlertCircle,
+  FileText,
+  BadgeCheck,
 } from "lucide-react";
 import { api } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
@@ -23,8 +25,6 @@ export default function Dashboard() {
   const [permits, setPermits] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  const [trips, setTrips] = useState([]);
-  const [archives, setArchives] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,20 +40,15 @@ export default function Dashboard() {
       setLoading(true);
       setError("");
 
-      const [permitsRes, vehiclesRes, driversRes, tripsRes, archivesRes] =
-        await Promise.all([
-          api.getPermits(),
-          api.getVehicles(),
-          api.getDrivers(),
-          api.getTrips(),
-          api.getArchives(),
-        ]);
+      const [permitsRes, vehiclesRes, driversRes] = await Promise.all([
+        api.getPermits(),
+        api.getVehicles(),
+        api.getDrivers(),
+      ]);
 
       setPermits(extractData(permitsRes));
       setVehicles(extractData(vehiclesRes));
       setDrivers(extractData(driversRes));
-      setTrips(extractData(tripsRes));
-      setArchives(extractData(archivesRes));
     } catch (err) {
       console.error("Dashboard load error:", err);
       setError(err?.message || "Gagal mengambil data dashboard dari server.");
@@ -93,6 +88,7 @@ export default function Dashboard() {
     let soon = 0;
     let expired = 0;
     let pending = 0;
+    let approved = 0;
 
     const now = new Date();
 
@@ -101,6 +97,9 @@ export default function Dashboard() {
       if (explicitStatus === "pending") {
         pending++;
         return;
+      }
+      if (explicitStatus === "approved") {
+        approved++;
       }
       if (explicitStatus === "expired" || explicitStatus === "rejected") {
         expired++;
@@ -139,9 +138,11 @@ export default function Dashboard() {
       soon,
       expired,
       pending,
+      approved,
       activePercent: Math.round((active / total) * 100),
       soonPercent: Math.round((soon / total) * 100),
       expiredPercent: Math.round((expired / total) * 100),
+      pendingPercent: Math.round((pending / total) * 100),
     };
   }, [permits]);
 
@@ -153,19 +154,50 @@ export default function Dashboard() {
     const maintenance = vehicles.filter(
       (v) => String(v.status || "").toLowerCase() === "maintenance"
     ).length;
-    return { active, maintenance, total: vehicles.length };
+    const inactive = vehicles.filter(
+      (v) => String(v.status || "").toLowerCase() === "inactive"
+    ).length;
+    return { active, maintenance, inactive, total: vehicles.length };
   }, [vehicles]);
 
-  // Driver status breakdown
+  // Driver status & license breakdown
   const driverStats = useMemo(() => {
-    const active = drivers.filter(
-      (d) => String(d.status || "Active").toLowerCase() === "active"
-    ).length;
-    return { active, total: drivers.length };
+    const now = new Date();
+    let active = 0;
+    let validLicense = 0;
+    let expiringLicense = 0;
+    let expiredLicense = 0;
+
+    drivers.forEach((d) => {
+      const status = String(d.status || "Active").toLowerCase();
+      if (status === "active") active++;
+
+      const expDate = normalizeDate(d.expiry_date || d.license_expiry);
+      if (!expDate) {
+        validLicense++;
+      } else {
+        const diffDays = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) {
+          expiredLicense++;
+        } else if (diffDays <= 30) {
+          expiringLicense++;
+        } else {
+          validLicense++;
+        }
+      }
+    });
+
+    return {
+      active,
+      validLicense,
+      expiringLicense,
+      expiredLicense,
+      total: drivers.length,
+    };
   }, [drivers]);
 
-  // Monthly trips calculation
-  const monthlyTrips = useMemo(() => {
+  // Monthly permits volume calculation
+  const monthlyPermits = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const months = [
       "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -178,38 +210,37 @@ export default function Dashboard() {
       monthIndex: index,
     }));
 
-    trips.forEach((trip) => {
-      const tripDateValue = getField(trip, [
-        "departure_date",
-        "trip_date",
-        "date",
+    permits.forEach((permit) => {
+      const dateValue = getField(permit, [
         "start_date",
         "created_at",
+        "departure_date",
+        "date",
       ]);
-      const tripDate = normalizeDate(tripDateValue);
-      if (!tripDate || tripDate.getFullYear() !== currentYear) return;
+      const permitDate = normalizeDate(dateValue);
+      if (!permitDate || permitDate.getFullYear() !== currentYear) return;
 
-      const monthIndex = tripDate.getMonth();
+      const monthIndex = permitDate.getMonth();
       if (result[monthIndex]) {
         result[monthIndex].count++;
       }
     });
 
     return result;
-  }, [trips]);
+  }, [permits]);
 
-  const maxMonthlyTrips = Math.max(
-    ...monthlyTrips.map((item) => item.count),
+  const maxMonthlyPermits = Math.max(
+    ...monthlyPermits.map((item) => item.count),
     1
   );
 
   const peakMonth = useMemo(() => {
-    let peak = monthlyTrips[0];
-    for (const m of monthlyTrips) {
+    let peak = monthlyPermits[0];
+    for (const m of monthlyPermits) {
       if (m.count > (peak?.count || 0)) peak = m;
     }
     return peak?.count > 0 ? peak : null;
-  }, [monthlyTrips]);
+  }, [monthlyPermits]);
 
   // Recent permits sorted by creation/date
   const recentPermits = useMemo(() => {
@@ -302,7 +333,7 @@ export default function Dashboard() {
 
             <p className="text-xs sm:text-sm text-emerald-100/75 leading-relaxed">
               Pantau status izin jalan (*permit*), ketersediaan armada truk rig,
-              kepatuhan lisensi pengemudi, dan arsip digital secara terpusat dan *real-time*.
+              kepatuhan lisensi pengemudi, dan laporan operasional secara terpusat dan *real-time*.
             </p>
           </div>
 
@@ -317,11 +348,11 @@ export default function Dashboard() {
             </Link>
 
             <Link
-              to="/trips/create"
+              to="/vehicles/create"
               className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
             >
-              <Route size={16} />
-              <span>Jadwal Trip</span>
+              <Car size={16} />
+              <span>Tambah Armada</span>
             </Link>
 
             <button
@@ -417,7 +448,7 @@ export default function Dashboard() {
           <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs">
             <span className="flex items-center gap-1.5 font-semibold text-emerald-700">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              {driverStats.active} Siap Ditugaskan
+              {driverStats.active} Siap Tugas
             </span>
             <Link
               to="/drivers"
@@ -428,29 +459,29 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* TOTAL TRIPS */}
+        {/* PENDING APPROVAL PERMITS */}
         <div className="group relative overflow-hidden rounded-3xl border border-gray-200/70 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-md">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                Total Perjalanan Trip
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-600">
+                Menunggu Persetujuan
               </p>
-              <h2 className="mt-2 text-3xl font-extrabold text-[#12372A]">
-                {trips.length}
+              <h2 className="mt-2 text-3xl font-extrabold text-amber-700">
+                {permitStatus.pending}
               </h2>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-50 text-purple-700 border border-purple-100 group-hover:bg-[#D8FF00]/25 transition-colors">
-              <Route size={24} />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 border border-amber-200/60 group-hover:bg-amber-100 transition-colors">
+              <AlertCircle size={24} />
             </div>
           </div>
 
           <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs">
-            <span className="text-gray-500">Aktivitas Tahun {new Date().getFullYear()}</span>
+            <span className="text-amber-800 font-medium">Perlu verifikasi Admin</span>
             <Link
-              to="/trips"
-              className="font-semibold text-[#12372A] hover:underline inline-flex items-center gap-0.5"
+              to="/permit"
+              className="font-bold text-[#12372A] hover:underline inline-flex items-center gap-0.5"
             >
-              Jadwal Trip <ChevronRight size={12} />
+              Buka Permit <ChevronRight size={12} />
             </Link>
           </div>
         </div>
@@ -569,37 +600,37 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* MONTHLY TRIPS BAR CHART */}
+        {/* MONTHLY PERMITS VOLUME BAR CHART */}
         <div className="flex flex-col rounded-3xl border border-gray-200/70 bg-white p-6 shadow-xs xl:col-span-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-4 gap-2">
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-gray-900 text-base">
-                  Volume Perjalanan Trip Bulanan
+                  Volume Pengajuan Permit Bulanan
                 </h3>
                 <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200/60">
                   Tahun {new Date().getFullYear()}
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
-                Intensitas operasional transportasi antarlokasi & rig
+                Frekuensi permohonan izin transportasi yang tercatat
               </p>
             </div>
 
             {peakMonth && (
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[#12372A]/5 px-3 py-1 text-xs font-semibold text-[#12372A]">
                 <TrendingUp size={13} className="text-[#12372A]" />
-                <span>Puncak: {peakMonth.month} ({peakMonth.count} trip)</span>
+                <span>Puncak: {peakMonth.month} ({peakMonth.count} permit)</span>
               </div>
             )}
           </div>
 
           <div className="mt-6 flex flex-1 items-end justify-between gap-2 sm:gap-3 min-h-[220px] px-2">
-            {monthlyTrips.map((item) => {
+            {monthlyPermits.map((item) => {
               const heightPercent =
                 item.count === 0
                   ? 5
-                  : Math.max((item.count / maxMonthlyTrips) * 100, 10);
+                  : Math.max((item.count / maxMonthlyPermits) * 100, 10);
               const isPeak = peakMonth && peakMonth.month === item.month;
 
               return (
@@ -650,69 +681,79 @@ export default function Dashboard() {
       </div>
 
       {/* =========================================================
-          LOWER SECTION: DIGITAL ARCHIVE & RECENT PERMITS
+          LOWER SECTION: DRIVER SAFETY & RECENT PERMITS
       ========================================================= */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* DIGITAL ARCHIVE SUMMARY */}
-        <div className="rounded-3xl border border-gray-200/70 bg-white p-6 shadow-xs lg:col-span-1 flex flex-col">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-700">
-                <Archive size={18} />
+        {/* DRIVER SAFETY & LICENSE COMPLIANCE */}
+        <div className="rounded-3xl border border-gray-200/70 bg-white p-6 shadow-xs lg:col-span-1 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-[#12372A] border border-emerald-100">
+                  <ShieldCheck size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">
+                    Kepatuhan SIM Driver
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    Monitoring lisensi & K3 Pengemudi
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-gray-900 text-base">
-                  Arsip Digital
-                </h3>
-                <p className="text-xs text-gray-400">
-                  Dokumen & sertifikat digital
+
+              <Link
+                to="/drivers"
+                className="text-xs font-semibold text-[#12372A] hover:underline"
+              >
+                Buka Driver
+              </Link>
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-2.5">
+              <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3 text-center">
+                <p className="text-[10px] font-bold uppercase text-gray-400">Total Driver</p>
+                <p className="mt-1 text-2xl font-black text-[#12372A]">
+                  {driverStats.total}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 text-center">
+                <p className="text-[10px] font-bold uppercase text-emerald-600">SIM Valid</p>
+                <p className="mt-1 text-2xl font-black text-emerald-700">
+                  {driverStats.validLicense}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-3 text-center">
+                <p className="text-[10px] font-bold uppercase text-rose-600">Perlu Update</p>
+                <p className="mt-1 text-2xl font-black text-rose-700">
+                  {driverStats.expiringLicense + driverStats.expiredLicense}
                 </p>
               </div>
             </div>
-
-            <Link
-              to="/archive"
-              className="text-xs font-semibold text-[#12372A] hover:underline"
-            >
-              Buka Arsip
-            </Link>
           </div>
 
-          <div className="mt-5 grid grid-cols-3 gap-2.5">
-            <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3.5 text-center">
-              <p className="text-[11px] font-semibold text-gray-400">Total Berkas</p>
-              <p className="mt-1 text-2xl font-black text-[#12372A]">
-                {archives.length}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3.5 text-center">
-              <p className="text-[11px] font-semibold text-emerald-600">Terverifikasi</p>
-              <p className="mt-1 text-2xl font-black text-emerald-700">
-                {archives.filter((a) => String(a.status).toLowerCase() === "active").length}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 text-center">
-              <p className="text-[11px] font-semibold text-slate-500">Tersimpan</p>
-              <p className="mt-1 text-2xl font-black text-slate-700">
-                {archives.filter((a) => String(a.status).toLowerCase() === "archived").length}
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Upload Box */}
-          <div className="mt-5 rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 p-4 text-center">
+          {/* Quick Registration / Manage Box */}
+          <div className="mt-5 rounded-2xl border border-dashed border-gray-200 bg-[#F5F7F6]/60 p-4 text-center">
             <p className="text-xs font-semibold text-gray-700">
-              Perlu mengunggah dokumen baru?
+              Tambah Pengemudi atau Perbarui SIM?
             </p>
             <p className="text-[11px] text-gray-400 mt-0.5">
-              Simpan berkas permit, surat jalan, dan sertifikat uji emisi.
+              Pastikan seluruh pengemudi aktif memiliki lisensi yang valid sebelum bertugas.
             </p>
-            <Link
-              to="/archive"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#12372A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#0c261d] transition"
-            >
-              <Plus size={13} /> Unggah ke Arsip
-            </Link>
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <Link
+                to="/drivers/create"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#12372A] px-3.5 py-1.5 text-xs font-semibold text-[#D8FF00] hover:bg-[#0c261d] transition shadow-xs"
+              >
+                <Plus size={13} /> Tambah Driver
+              </Link>
+              <Link
+                to="/drivers"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-xs"
+              >
+                Lihat Semua
+              </Link>
+            </div>
           </div>
         </div>
 

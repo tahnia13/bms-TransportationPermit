@@ -5,22 +5,32 @@ import { api } from "../services/api";
 export default function EmailModal({ isOpen, onClose, permit, defaultType = "expiry_alert", onSent }) {
   if (!isOpen) return null;
 
+  const permitNumStr = permit?.permit_number ? `#${permit.permit_number}` : "";
+
   const defaultSubject =
     defaultType === "expiry_alert"
-      ? `[PERINGATAN KEDALUWARSA] Surat Izin Permit #${permit?.permit_number || ""}`
+      ? `[PERINGATAN KEDALUWARSA] Surat Izin Permit ${permitNumStr}`.trim()
       : defaultType === "approval_notice"
-      ? `[PEMBERITAHUAN PERSETUJUAN] Permit #${permit?.permit_number || ""} Telah Disetujui`
-      : `[NOTIFIKASI PERMIT] Pembaruan Dokumen #${permit?.permit_number || ""}`;
+      ? `[PEMBERITAHUAN PERSETUJUAN] Permit ${permitNumStr} Telah Disetujui`.trim()
+      : `[NOTIFIKASI PERMIT] Pembaruan Dokumen Transportasi ${permitNumStr}`.trim();
 
   const [recipient, setRecipient] = useState(
-    permit?.requester_email || (permit?.driver ? `${permit.driver.toLowerCase().replace(/\s+/g, ".")}@besmindo.co.id` : "logistics.ops@besmindo.co.id")
+    permit?.requester_email || (permit?.driver ? `${permit.driver.toLowerCase().replace(/\s+/g, ".")}@besmindo.co.id` : "abduhjamil27@gmail.com")
   );
   const [subject, setSubject] = useState(defaultSubject);
-  const [notes, setNotes] = useState(
-    defaultType === "expiry_alert"
-      ? `Yth. Rekan Tim Operasional,\n\nMohon perhatian bahwa izin operasional (Permit) dengan nomor #${permit?.permit_number} untuk kendaraan ${permit?.vehicle || "-"} dengan driver ${permit?.driver || "-"} akan kedaluwarsa pada ${permit?.end_date || "-"}.\n\nSegera ajukan pembaharuan dokumen melalui sistem transportasi PT Besmindo Materi Sewatama.`
-      : `Yth. Tim Operasional & Pengemudi,\n\nSurat izin jalan #${permit?.permit_number} untuk rute ${permit?.origin} -> ${permit?.destination} telah disetujui oleh Kepala Departemen Transportasi.\n\nHarap patuhi SOP keselamatan berkendara.`
-  );
+  const [notes, setNotes] = useState(() => {
+    if (defaultType === "expiry_alert") {
+      return permit
+        ? `Yth. Rekan Tim Operasional,\n\nMohon perhatian bahwa izin operasional (Permit) dengan nomor #${permit.permit_number} untuk kendaraan ${permit.vehicle || "-"} dengan driver ${permit.driver || "-"} akan kedaluwarsa pada ${permit.end_date || "-"}.\n\nSegera ajukan pembaharuan dokumen melalui sistem transportasi PT Besmindo Materi Sewatama.`
+        : `Yth. Rekan Tim Operasional,\n\nMohon periksa masa berlaku surat izin jalan (Permit) dan dokumen kelayakan armada kendaraan operasional Anda.\n\nHarap lakukan pembaruan berkas sebelum batas masa berlaku habis melalui sistem PT Besmindo Materi Sewatama.`;
+    }
+    if (defaultType === "approval_notice") {
+      return permit
+        ? `Yth. Tim Operasional & Pengemudi,\n\nSurat izin jalan #${permit.permit_number} untuk rute ${permit.origin || "-"} -> ${permit.destination || "-"} telah disetujui oleh Kepala Departemen Transportasi.\n\nHarap patuhi SOP keselamatan berkendara.`
+        : `Yth. Tim Operasional,\n\nPengajuan permohonan izin operasional telah disetujui oleh Administrator Transportasi PT Besmindo Materi Sewatama.\n\nHarap patuhi SOP keselamatan berkendara K3.`;
+    }
+    return `Yth. Tim Operasional,\n\nPemberitahuan resmi terkait perizinan dan kelayakan armada transportasi PT Besmindo Materi Sewatama.`;
+  });
   const [sending, setSending] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");

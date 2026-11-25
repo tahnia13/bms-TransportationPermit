@@ -33,35 +33,68 @@ class VehicleController extends Controller
                 'max:50',
                 'unique:vehicles,plate_number',
             ],
-
             'type' => [
                 'required',
                 'string',
                 'max:255',
             ],
-
-            'category' => [
-                'required',
-                Rule::in([
-                    'Operational',
-                    'Transport',
-                    'Support',
-                ]),
+            'brand' => [
+                'nullable',
+                'string',
+                'max:255',
             ],
-
+            'axle' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            'owner_name' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'category' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'year' => [
-                'required',
+                'nullable',
                 'integer',
                 'min:1900',
                 'max:2100',
             ],
-
+            'color' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
             'rig' => [
                 'nullable',
                 'string',
-                'max:20',
+                'max:100',
             ],
-
+            'rig_baru' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'stnk_expiry' => [
+                'nullable',
+                'date',
+            ],
+            'pajak_expiry' => [
+                'nullable',
+                'date',
+            ],
+            'kir_expiry' => [
+                'nullable',
+                'date',
+            ],
+            'pass_expiry' => [
+                'nullable',
+                'date',
+            ],
             'status' => [
                 'nullable',
                 Rule::in([
@@ -70,7 +103,6 @@ class VehicleController extends Controller
                     'Inactive',
                 ]),
             ],
-
             'description' => [
                 'nullable',
                 'string',
@@ -120,65 +152,88 @@ class VehicleController extends Controller
         Request $request,
         Vehicle $vehicle
     ) {
-        $validated =
-            $request->validate([
-                'plate_number' => [
-                    'required',
-                    'string',
-                    'max:50',
-
-                    Rule::unique(
-                        'vehicles',
-                        'plate_number'
-                    )->ignore(
-                        $vehicle->id
-                    ),
-                ],
-
-                'type' => [
-                    'required',
-                    'string',
-                    'max:255',
-                ],
-
-                'category' => [
-                    'required',
-
-                    Rule::in([
-                        'Operational',
-                        'Transport',
-                        'Support',
-                    ]),
-                ],
-
-                'year' => [
-                    'required',
-                    'integer',
-                    'min:1900',
-                    'max:2100',
-                ],
-
-                'rig' => [
-                    'nullable',
-                    'string',
-                    'max:20',
-                ],
-
-                'status' => [
-                    'required',
-
-                    Rule::in([
-                        'Active',
-                        'Maintenance',
-                        'Inactive',
-                    ]),
-                ],
-
-                'description' => [
-                    'nullable',
-                    'string',
-                ],
-            ]);
+        $validated = $request->validate([
+            'plate_number' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('vehicles', 'plate_number')->ignore($vehicle->id),
+            ],
+            'type' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+            'brand' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'axle' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            'owner_name' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'category' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'year' => [
+                'nullable',
+                'integer',
+                'min:1900',
+                'max:2100',
+            ],
+            'color' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'rig' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'rig_baru' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'stnk_expiry' => [
+                'nullable',
+                'date',
+            ],
+            'pajak_expiry' => [
+                'nullable',
+                'date',
+            ],
+            'kir_expiry' => [
+                'nullable',
+                'date',
+            ],
+            'pass_expiry' => [
+                'nullable',
+                'date',
+            ],
+            'status' => [
+                'required',
+                Rule::in([
+                    'Active',
+                    'Maintenance',
+                    'Inactive',
+                ]),
+            ],
+            'description' => [
+                'nullable',
+                'string',
+            ],
+        ]);
 
         $vehicle->update(
             $validated

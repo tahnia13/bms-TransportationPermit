@@ -10,6 +10,21 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import { useToast } from "../../components/Toast";
+import FormSelectWithCustom from "../../components/FormSelectWithCustom";
+
+const defaultDestinationOptions = [
+  "RIG BMS 02",
+  "RIG BMS 03",
+  "RIG BMS 05",
+  "RIG BMS 07",
+  "RIG BMS 10",
+  "RIG BMS 15",
+  "RIG BMS 18",
+  "YARD DURI",
+  "YARD DUMAI",
+  "MINAS WORKSHOP",
+  "POOL PEKANBARU",
+];
 
 export default function TripCreate() {
   const navigate = useNavigate();
@@ -232,17 +247,15 @@ export default function TripCreate() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                Tujuan Akhir (*Destination*) <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
+              <FormSelectWithCustom
+                label="Tujuan Akhir (Destination)"
                 name="destination"
                 value={formData.destination}
                 onChange={handleChange}
                 required
-                placeholder="Rig 03 Minas / Duri Camp"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-xs sm:text-sm text-gray-800 outline-none focus:border-[#12372A] focus:bg-white transition"
+                storageKey="trip_destination"
+                defaultOptions={defaultDestinationOptions}
+                placeholder="-- Pilih Tujuan Operasional --"
               />
             </div>
           </div>

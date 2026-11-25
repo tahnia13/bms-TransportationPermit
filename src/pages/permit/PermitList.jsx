@@ -25,16 +25,54 @@ import {
   Download,
   AlertCircle,
   FileBadge2,
+  Compass,
 } from "lucide-react";
 import { api } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
+import FilterSelectWithCustom from "../../components/FilterSelectWithCustom";
 import EmailModal from "../../components/EmailModal";
+import DrivingPermitCardModal from "../../components/DrivingPermitCardModal";
 import { useToast } from "../../components/Toast";
+
+const defaultDepartmentOptions = [
+  "All",
+  "Operation Rig",
+  "Transportation",
+  "Maintenance & Workshop",
+  "HSE / K3LL",
+  "Logistics & Yard",
+  "General Affair",
+];
+
+const defaultRigOptions = [
+  "All",
+  "BMS 02",
+  "BMS 03",
+  "BMS 03A",
+  "BMS 05",
+  "BMS 06",
+  "BMS 07",
+  "BMS 08",
+  "BMS 10",
+  "BMS 11",
+  "BMS 15",
+  "BMS 16",
+  "BMS 17",
+  "BMS 18",
+  "BMS 19",
+  "BMS 20",
+  "BMS 21",
+  "SUPPORT",
+  "POOL",
+  "YARD",
+];
 
 export default function PermitList() {
   const toast = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedDepartment, setSelectedDepartment] = useState("All");
+  const [selectedRig, setSelectedRig] = useState("All");
   const [permits, setPermits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -45,6 +83,9 @@ export default function PermitList() {
   const [saving, setSaving] = useState(false);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
+
+  // Driving Permit 2-sided card modal state
+  const [cardModal, setCardModal] = useState({ open: false, permit: null });
 
   // Approval action states
   const [approvalModal, setApprovalModal] = useState({
@@ -76,6 +117,7 @@ export default function PermitList() {
   });
 
   const isAdmin = true;
+  const [activeCard, setActiveCard] = useState(null); // 'total' | 'approved' | 'pending' | 'expiring'
 
   const loadPermits = async () => {
     setLoading(true);
@@ -136,7 +178,74 @@ export default function PermitList() {
     return String(date).substring(0, 10);
   };
 
-  // Status counts
+  /**
+   * Logika Otomatisasi Status Efektif Permit (Dynamic Status)
+   * Menggabungkan status otorisasi admin dan tanggal kadaluarsa (end_date) vs tanggal saat ini
+   */
+  const getPermitEffectiveStatus = (permit) => {
+    if (!permit) return "Pending";
+
+    const raw = String(permit.status || "").trim();
+    const rawLower = raw.toLowerCase();
+
+    // 1. Pending (Menunggu Persetujuan Admin)
+    if (rawLower === "pending") {
+      return "Pending";
+    }
+
+    // 2. Rejected (Ditolak oleh Admin)
+    if (rawLower === "rejected") {
+      return "Rejected";
+    }
+
+    // 3. Evaluasi tanggal masa berlaku (end_date) secara otomatis
+    if (permit.end_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const exp = new Date(permit.end_date);
+      exp.setHours(0, 0, 0, 0);
+
+      if (!Number.isNaN(exp.getTime())) {
+        const diffTime = exp.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        // Jika hari ini sudah melewati tanggal kadaluarsa -> Otomatis EXPIRED
+        if (diffDays < 0) {
+          return "Expired";
+        }
+
+        // Jika tersisa <= 30 hari lagi -> Otomatis EXPIRING SOON
+        if (diffDays <= 30) {
+          return "Expiring Soon";
+        }
+      }
+    }
+
+    // Fallback bila ada status eksplisit
+    if (rawLower === "expired") return "Expired";
+    if (rawLower === "expiring soon" || rawLower === "expiring") return "Expiring Soon";
+
+    return "Approved";
+  };
+
+  /**
+   * Helper menghitung sisa hari masa berlaku
+   */
+  const getPermitDaysLeft = (permit) => {
+    if (!permit || !permit.end_date) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const exp = new Date(permit.end_date);
+    exp.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(exp.getTime())) return null;
+    const diffTime = exp.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  // Status counts (Otomatis & Real-time berdasarkan status efektif)
   const statusCounts = useMemo(() => {
     const counts = {
       All: permits.length,
@@ -148,28 +257,59 @@ export default function PermitList() {
     };
 
     permits.forEach((p) => {
-      const s = p.status || "Pending";
-      if (counts[s] !== undefined) counts[s]++;
-      else counts[s] = 1;
+      const s = getPermitEffectiveStatus(p);
+      if (counts[s] !== undefined) {
+        counts[s]++;
+      } else {
+        counts[s] = 1;
+      }
     });
 
     return counts;
   }, [permits]);
 
-  // Filtered permits
+  // Filtered permits (Akurat berdasar perbandingan tanggal dinamis & status otorisasi)
   const filteredPermits = useMemo(() => {
     const keyword = search.toLowerCase().trim();
 
     return permits.filter((permit) => {
-      // Filter by status tab
+      const effStatus = getPermitEffectiveStatus(permit);
+
+      // 1. KPI card quick-filter
+      if (activeCard === "approved") {
+        if (effStatus !== "Approved") return false;
+      } else if (activeCard === "pending") {
+        if (effStatus !== "Pending") return false;
+      } else if (activeCard === "expiring") {
+        if (effStatus !== "Expiring Soon" && effStatus !== "Expired") return false;
+      }
+
+      // 2. Filter by status tab (Approved, Pending, Expiring Soon, Expired, Rejected)
       if (statusFilter !== "All") {
-        const permitStatus = String(permit.status || "").toLowerCase();
-        if (permitStatus !== statusFilter.toLowerCase()) {
+        if (effStatus.toLowerCase() !== statusFilter.toLowerCase()) {
           return false;
         }
       }
 
-      // Keyword search
+      // 3. Filter by department
+      if (selectedDepartment !== "All") {
+        const pDept = String(permit.department || "").toLowerCase().trim();
+        const tDept = String(selectedDepartment).toLowerCase().trim();
+        if (!pDept.includes(tDept) && pDept !== tDept) {
+          return false;
+        }
+      }
+
+      // 4. Filter by Rig
+      if (selectedRig !== "All") {
+        const pRig = String(permit.rig || permit.rig_name || "").toLowerCase().trim();
+        const tRig = String(selectedRig).toLowerCase().trim();
+        if (!pRig.includes(tRig) && pRig !== tRig) {
+          return false;
+        }
+      }
+
+      // 5. Keyword search (juga mencocokkan status efektif dinamis)
       if (!keyword) return true;
 
       return (
@@ -177,12 +317,15 @@ export default function PermitList() {
         String(permit.requester || "").toLowerCase().includes(keyword) ||
         String(permit.driver || "").toLowerCase().includes(keyword) ||
         String(permit.vehicle || "").toLowerCase().includes(keyword) ||
+        String(permit.rig || "").toLowerCase().includes(keyword) ||
+        String(permit.rig_name || "").toLowerCase().includes(keyword) ||
         String(permit.origin || "").toLowerCase().includes(keyword) ||
         String(permit.destination || "").toLowerCase().includes(keyword) ||
+        effStatus.toLowerCase().includes(keyword) ||
         String(permit.status || "").toLowerCase().includes(keyword)
       );
     });
-  }, [permits, search, statusFilter]);
+  }, [permits, search, statusFilter, selectedDepartment, selectedRig, activeCard]);
 
   const handleDelete = async (permit) => {
     if (!isAdmin) {
@@ -218,7 +361,15 @@ export default function PermitList() {
       requester: permit.requester || "",
       department: permit.department || "",
       vehicle: permit.vehicle || "",
+      rig: permit.rig || permit.rig_name || "",
       driver: permit.driver || "",
+      position: permit.position || "",
+      license_number: permit.license_number || "",
+      license_expiry_year: permit.license_expiry_year || "",
+      license_type: permit.license_type || "BII.U",
+      ddc_training_date: formatDateForInput(permit.ddc_training_date),
+      equipment_type: permit.equipment_type || "FOCO / BUS / LV / 4 X 4",
+      driver_photo: permit.driver_photo || "",
       origin: permit.origin || "",
       destination: permit.destination || "",
       start_date: formatDateForInput(permit.start_date),
@@ -292,7 +443,15 @@ export default function PermitList() {
         requester: editForm.requester,
         department: editForm.department || null,
         vehicle: editForm.vehicle || null,
+        rig: editForm.rig || null,
         driver: editForm.driver || null,
+        position: editForm.position || null,
+        license_number: editForm.license_number || null,
+        license_type: editForm.license_type || null,
+        license_expiry_year: editForm.license_expiry_year || null,
+        ddc_training_date: editForm.ddc_training_date || null,
+        equipment_type: editForm.equipment_type || null,
+        driver_photo: editForm.driver_photo || null,
         origin: editForm.origin,
         destination: editForm.destination,
         start_date: editForm.start_date,
@@ -357,6 +516,109 @@ export default function PermitList() {
           {errorMessage}
         </div>
       )}
+
+      {/* KPI METRICS */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "total" ? null : "total")}
+          className={`rounded-2xl border p-4 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "total"
+              ? "border-[#12372A] bg-[#12372A]/5 ring-2 ring-[#12372A]/30"
+              : "border-gray-200/70 bg-white hover:border-gray-300"
+          }`}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            Total Permit
+          </p>
+          <div className="mt-2 flex items-baseline justify-between">
+            <h3 className="text-2xl font-extrabold text-[#12372A]">{statusCounts.All}</h3>
+            <span className="text-xs text-gray-400 font-medium">Semua Permohonan</span>
+          </div>
+          {activeCard === "total" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-[#12372A] bg-[#D8FF00] px-2 py-0.5 rounded-full">
+              ▼ Menampilkan Semua
+            </span>
+          )}
+        </button>
+
+        {/* Approved */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "approved" ? null : "approved")}
+          className={`rounded-2xl border p-4 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "approved"
+              ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-300"
+              : "border-emerald-100 bg-emerald-50/40 hover:border-emerald-200"
+          }`}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
+            Disetujui
+          </p>
+          <div className="mt-2 flex items-baseline justify-between">
+            <h3 className="text-2xl font-extrabold text-emerald-700">{statusCounts.Approved || 0}</h3>
+            <span className="text-xs text-emerald-600 font-semibold">Approved</span>
+          </div>
+          {activeCard === "approved" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-emerald-800 bg-emerald-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Approved
+            </span>
+          )}
+        </button>
+
+        {/* Pending */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "pending" ? null : "pending")}
+          className={`rounded-2xl border p-4 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "pending"
+              ? "border-amber-500 bg-amber-50 ring-2 ring-amber-300"
+              : "border-amber-100 bg-amber-50/40 hover:border-amber-200"
+          }`}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-wider text-amber-600">
+            Menunggu Persetujuan
+          </p>
+          <div className="mt-2 flex items-baseline justify-between">
+            <h3 className="text-2xl font-extrabold text-amber-700">{statusCounts.Pending || 0}</h3>
+            <span className="text-xs text-amber-600 font-semibold">Pending</span>
+          </div>
+          {activeCard === "pending" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Pending
+            </span>
+          )}
+        </button>
+
+        {/* Expiring / Expired */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "expiring" ? null : "expiring")}
+          className={`rounded-2xl border p-4 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "expiring"
+              ? "border-rose-500 bg-rose-50 ring-2 ring-rose-300"
+              : "border-rose-100 bg-rose-50/40 hover:border-rose-200"
+          }`}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">
+            Expiring / Expired
+          </p>
+          <div className="mt-2 flex items-baseline justify-between">
+            <h3 className="text-2xl font-extrabold text-rose-700">
+              {(statusCounts["Expiring Soon"] || 0) + (statusCounts.Expired || 0)}
+            </h3>
+            <span className="text-xs text-rose-600 font-semibold">Perlu Perhatian</span>
+          </div>
+          {activeCard === "expiring" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-rose-800 bg-rose-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Expiring / Expired
+            </span>
+          )}
+        </button>
+      </div>
+
+
 
       {/* ROLE INFORMATION BANNER */}
       <div className="flex items-center justify-between rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-xs">
@@ -424,28 +686,52 @@ export default function PermitList() {
             })}
           </div>
 
-          {/* SEARCH BAR */}
-          <div className="relative w-full sm:max-w-xs">
-            <Search
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* DEPARTMENT FILTER WITH CUSTOM OPTIONS */}
+            <FilterSelectWithCustom
+              label="Departemen"
+              icon={Building2}
+              value={selectedDepartment}
+              onChange={setSelectedDepartment}
+              defaultOptions={defaultDepartmentOptions}
+              storageKey="permit_department"
+              placeholderAll="Semua Departemen"
             />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari permit, requester, supir..."
-              className="w-full rounded-2xl border border-gray-200 bg-[#F5F7F6] py-2.5 pl-10 pr-9 text-xs sm:text-sm text-gray-800 outline-none focus:border-[#12372A] focus:bg-white transition"
+
+            {/* RIG FILTER WITH CUSTOM OPTIONS */}
+            <FilterSelectWithCustom
+              label="Penugasan Rig"
+              icon={Compass}
+              value={selectedRig}
+              onChange={setSelectedRig}
+              defaultOptions={defaultRigOptions}
+              storageKey="permit_filter_rig"
+              placeholderAll="Semua Rig & Yard"
             />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X size={14} />
-              </button>
-            )}
+
+            {/* SEARCH BAR */}
+            <div className="relative w-full sm:w-64">
+              <Search
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari permit, requester, supir, rig..."
+                className="w-full rounded-2xl border border-gray-200 bg-[#F5F7F6] py-2.5 pl-10 pr-9 text-xs sm:text-sm text-gray-800 outline-none focus:border-[#12372A] focus:bg-white transition"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -490,8 +776,11 @@ export default function PermitList() {
                 </tr>
               ) : (
                 filteredPermits.map((permit) => {
-                  const isPending = (permit.status || "").toLowerCase() === "pending";
-                  const isExpiring = (permit.status || "").toLowerCase() === "expiring soon";
+                  const effStatus = getPermitEffectiveStatus(permit);
+                  const isPending = effStatus.toLowerCase() === "pending";
+                  const isExpiring = effStatus.toLowerCase() === "expiring soon";
+                  const isExpired = effStatus.toLowerCase() === "expired";
+                  const daysLeft = getPermitDaysLeft(permit);
 
                   return (
                     <tr
@@ -503,9 +792,16 @@ export default function PermitList() {
                         {permit.permit_number || `PM-${permit.id}`}
                       </td>
 
-                      {/* REQUESTER & DEPT */}
+                      {/* REQUESTER & DEPT & RIG */}
                       <td className="py-4">
-                        <p className="font-bold text-gray-800">{permit.requester}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-gray-800">{permit.requester}</span>
+                          {(permit.rig || permit.rig_name) && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200/90 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-800 shadow-2xs">
+                              🚜 {permit.rig || permit.rig_name}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[10px] text-gray-400">{permit.department || "-"}</p>
                       </td>
 
@@ -522,6 +818,11 @@ export default function PermitList() {
                           <ArrowRight size={11} className="text-gray-400 shrink-0" />
                           <span className="truncate max-w-[90px]">{permit.destination}</span>
                         </div>
+                        {(permit.rig || permit.rig_name) && (
+                          <p className="text-[10px] font-semibold text-amber-700 mt-0.5">
+                            Lokasi: <span className="font-bold text-gray-800">{permit.rig || permit.rig_name}</span>
+                          </p>
+                        )}
                       </td>
 
                       {/* VALIDITY */}
@@ -531,9 +832,19 @@ export default function PermitList() {
 
                       {/* STATUS & APPROVER */}
                       <td className="py-4">
-                        <StatusBadge status={permit.status || "Pending"} size="sm" />
+                        <StatusBadge status={effStatus} size="sm" />
+                        {effStatus === "Expired" && daysLeft !== null && (
+                          <p className="text-[10px] font-semibold text-rose-600 mt-0.5">
+                            {daysLeft === 0 ? "Kadaluarsa hari ini" : `Kadaluarsa ${Math.abs(daysLeft)} hari lalu`}
+                          </p>
+                        )}
+                        {effStatus === "Expiring Soon" && daysLeft !== null && (
+                          <p className="text-[10px] font-semibold text-amber-600 mt-0.5">
+                            Sisa {daysLeft} hari lagi
+                          </p>
+                        )}
                         {permit.approver && (
-                          <p className="text-[10px] text-gray-400 mt-1">
+                          <p className="text-[10px] text-gray-400 mt-0.5">
                             Oleh: {permit.approver}
                           </p>
                         )}
@@ -563,6 +874,16 @@ export default function PermitList() {
                               </button>
                             </>
                           )}
+
+                          {/* ID CARD BUTTON (2-SIDED PVC CARD) */}
+                          <button
+                            type="button"
+                            onClick={() => setCardModal({ open: true, permit })}
+                            title="Cetak ID Card Driving Permit (2 Halaman Depan/Belakang)"
+                            className="flex h-8 w-8 items-center justify-center rounded-2xl text-emerald-700 hover:bg-emerald-50 hover:text-emerald-900 transition"
+                          >
+                            <FileBadge2 size={16} />
+                          </button>
 
                           {/* EMAIL NOTIFICATION BUTTON */}
                           <button
@@ -700,25 +1021,27 @@ export default function PermitList() {
                 {/* STEP 3 */}
                 <div
                   className={`rounded-2xl bg-white p-2.5 border ${
-                    selectedPermit.status === "Approved"
+                    getPermitEffectiveStatus(selectedPermit) === "Approved"
                       ? "border-emerald-300 bg-emerald-50/20"
-                      : selectedPermit.status === "Rejected"
+                      : getPermitEffectiveStatus(selectedPermit) === "Expired" || getPermitEffectiveStatus(selectedPermit) === "Rejected"
                       ? "border-rose-300 bg-rose-50/20"
                       : "border-amber-300 bg-amber-50/20"
                   }`}
                 >
                   <div
                     className={`flex items-center justify-center gap-1 font-bold text-[11px] ${
-                      selectedPermit.status === "Approved"
+                      getPermitEffectiveStatus(selectedPermit) === "Approved"
                         ? "text-emerald-700"
-                        : selectedPermit.status === "Rejected"
+                        : getPermitEffectiveStatus(selectedPermit) === "Expired" || getPermitEffectiveStatus(selectedPermit) === "Rejected"
                         ? "text-rose-700"
                         : "text-amber-700"
                     }`}
                   >
-                    {selectedPermit.status === "Approved" ? (
+                    {getPermitEffectiveStatus(selectedPermit) === "Approved" ? (
                       <CheckCircle2 size={13} />
-                    ) : selectedPermit.status === "Rejected" ? (
+                    ) : getPermitEffectiveStatus(selectedPermit) === "Expired" ? (
+                      <AlertTriangle size={13} />
+                    ) : getPermitEffectiveStatus(selectedPermit) === "Rejected" ? (
                       <XCircle size={13} />
                     ) : (
                       <Clock size={13} />
@@ -726,10 +1049,10 @@ export default function PermitList() {
                     <span>3. Otorisasi</span>
                   </div>
                   <p className="text-[10px] text-gray-600 mt-1 font-semibold">
-                    {selectedPermit.status || "Pending Review"}
+                    {getPermitEffectiveStatus(selectedPermit)}
                   </p>
                   <p className="text-[9px] text-gray-400">
-                    {selectedPermit.approver ? `Oleh: ${selectedPermit.approver}` : "Menunggu Otorisator"}
+                    {selectedPermit.approver ? `Oleh: ${selectedPermit.approver}` : "Sistem Kepatuhan K3LL"}
                   </p>
                 </div>
               </div>
@@ -793,10 +1116,28 @@ export default function PermitList() {
                 <p className="text-[10px] text-gray-500">{selectedPermit.department || "-"}</p>
               </div>
 
-              <div className="rounded-2xl border border-gray-100 p-3 bg-gray-50/50">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Kendaraan & Supir</p>
-                <p className="mt-1 font-bold text-[#12372A]">{selectedPermit.vehicle || "-"}</p>
-                <p className="text-[10px] text-gray-500">Driver: {selectedPermit.driver || "-"}</p>
+              <div className="rounded-2xl border border-gray-100 p-3 bg-gray-50/50 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Kendaraan & Supir</p>
+                  <p className="mt-1 font-bold text-[#12372A]">{selectedPermit.vehicle || "-"}</p>
+                  <p className="text-[10px] text-gray-500">Driver: {selectedPermit.driver || "-"}</p>
+                </div>
+                {selectedPermit.driver_photo && selectedPermit.driver_photo !== "/default-driver-photo.png" && (
+                  <img
+                    src={selectedPermit.driver_photo}
+                    alt={selectedPermit.driver}
+                    className="h-12 w-10 rounded-lg object-cover border border-gray-300 shadow-2xs shrink-0 ml-2"
+                  />
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-amber-200/80 p-3 bg-amber-50/40">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Alokasi / Lokasi Rig</p>
+                <p className="mt-1 font-bold text-[#12372A] flex items-center gap-1.5">
+                  <span>🚜</span>
+                  <span className="text-sm font-extrabold">{selectedPermit.rig || selectedPermit.rig_name || "BMS Yard / Workshop"}</span>
+                </p>
+                <p className="text-[10px] text-gray-500">Unit Penugasan Operasional Rig</p>
               </div>
 
               <div className="sm:col-span-2 rounded-2xl border border-gray-100 p-3 bg-gray-50/50">
@@ -829,20 +1170,44 @@ export default function PermitList() {
 
             {/* FOOTER ACTIONS */}
             <div className="flex flex-wrap items-center justify-between border-t border-gray-100 pt-4 gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setEmailModal({
-                    open: true,
-                    permit: selectedPermit,
-                    type: "expiry_alert",
-                  })
-                }
-                className="inline-flex items-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                <Mail size={13} />
-                <span>Kirim Email Pengingat</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEmailModal({
+                      open: true,
+                      permit: selectedPermit,
+                      type: "expiry_alert",
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
+                >
+                  <Mail size={13} />
+                  <span>Kirim Email</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const p = selectedPermit;
+                    setCardMode(null);
+                    setCardModal({ open: true, permit: p });
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-800 shadow-xs transition"
+                >
+                  <FileBadge2 size={14} />
+                  <span>Cetak ID Card (2 Halaman)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCardMode("pdf")}
+                  className="inline-flex items-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
+                >
+                  <Printer size={13} />
+                  <span>Surat Izin (PDF)</span>
+                </button>
+              </div>
 
               <div className="flex items-center gap-2">
                 <button
@@ -1048,6 +1413,10 @@ export default function PermitList() {
                     <td className="py-2 px-3 font-semibold">{selectedPermit.vehicle || "-"}</td>
                   </tr>
                   <tr>
+                    <td className="py-2 px-3 font-bold text-gray-600">Alokasi / Lokasi Rig</td>
+                    <td className="py-2 px-3 font-bold text-amber-900">{selectedPermit.rig || selectedPermit.rig_name || "BMS Yard / Workshop"}</td>
+                  </tr>
+                  <tr className="bg-gray-50/70">
                     <td className="py-2 px-3 font-bold text-gray-600">Rute Perjalanan Resmi</td>
                     <td className="py-2 px-3 font-semibold">{selectedPermit.origin} &rarr; {selectedPermit.destination}</td>
                   </tr>
@@ -1088,7 +1457,7 @@ export default function PermitList() {
                 <p className="font-bold text-gray-700">Disetujui & Diotorisasi Oleh:</p>
                 <div>
                   <p className="font-bold text-gray-900 underline">{selectedPermit.approver || "Kepala Bagian Transportasi"}</p>
-                  <p className="text-[10px] text-gray-500">Status Otorisasi: {selectedPermit.status || "Approved"}</p>
+                  <p className="text-[10px] text-gray-500">Status Otorisasi: {getPermitEffectiveStatus(selectedPermit)}</p>
                 </div>
               </div>
             </div>
@@ -1209,6 +1578,26 @@ export default function PermitList() {
                   <datalist id="vehicle-list">
                     {vehicles.map((v) => (
                       <option key={v.id} value={v.plate_number || v.name} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">
+                    Rig / Lokasi Rig (Alokasi)
+                  </label>
+                  <input
+                    type="text"
+                    name="rig"
+                    value={editForm.rig || ""}
+                    onChange={handleEditChange}
+                    list="edit-rig-list"
+                    placeholder="Pilih atau ketik Rig (misal: BMS 02, BMS 10)"
+                    className="w-full rounded-2xl border border-gray-200 bg-[#F5F7F6] px-3.5 py-2 outline-none focus:border-[#12372A] focus:bg-white font-semibold text-gray-800"
+                  />
+                  <datalist id="edit-rig-list">
+                    {defaultRigOptions.filter((r) => r !== "All").map((r) => (
+                      <option key={r} value={r} />
                     ))}
                   </datalist>
                 </div>
@@ -1348,6 +1737,17 @@ export default function PermitList() {
         onClose={() => setEmailModal({ open: false, permit: null, type: "expiry_alert" })}
         permit={emailModal.permit}
         defaultType={emailModal.type}
+      />
+
+      {/* =========================================================
+          DRIVING PERMIT CARD MODAL (2-SIDED / 2-PAGE ID CARD)
+      ========================================================= */}
+      <DrivingPermitCardModal
+        isOpen={cardModal.open}
+        onClose={() => setCardModal({ open: false, permit: null })}
+        permit={cardModal.permit}
+        drivers={drivers}
+        vehicles={vehicles}
       />
     </div>
   );

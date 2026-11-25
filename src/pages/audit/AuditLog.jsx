@@ -32,6 +32,7 @@ export default function AuditLog() {
   const [selectedAction, setSelectedAction] = useState("All");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedLog, setSelectedLog] = useState(null);
+  const [activeCard, setActiveCard] = useState(null); // 'total' | 'approvals' | 'files' | 'emails'
 
   const loadLogs = async () => {
     try {
@@ -154,6 +155,23 @@ export default function AuditLog() {
     };
   }, [logs]);
 
+  // Client-side quick filter based on activeCard
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      if (activeCard === "approvals") {
+        const act = String(log.action || "").toUpperCase();
+        if (act !== "APPROVE" && act !== "REJECT") return false;
+      } else if (activeCard === "files") {
+        const act = String(log.action || "").toUpperCase();
+        if (act !== "UPLOAD" && act !== "DOWNLOAD") return false;
+      } else if (activeCard === "emails") {
+        const act = String(log.action || "").toUpperCase();
+        if (act !== "EMAIL") return false;
+      }
+      return true;
+    });
+  }, [logs, activeCard]);
+
   return (
     <div className="space-y-6">
       {/* HEADER */}
@@ -184,37 +202,93 @@ export default function AuditLog() {
 
       {/* KPI CARDS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-gray-200/80 bg-white p-4.5 shadow-xs">
+        {/* Total Logs */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "total" ? null : "total")}
+          className={`rounded-2xl border p-4.5 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "total"
+              ? "border-[#12372A] bg-[#12372A]/5 ring-2 ring-[#12372A]/30"
+              : "border-gray-200/80 bg-white hover:border-gray-300"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Total Log Tercatat</p>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-[#12372A]">{stats.total}</h3>
             <span className="text-xs text-gray-400">Aktivitas</span>
           </div>
-        </div>
+          {activeCard === "total" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-[#12372A] bg-[#D8FF00] px-2 py-0.5 rounded-full">
+              ▼ Menampilkan Semua
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4.5 shadow-xs">
+        {/* Approvals */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "approvals" ? null : "approvals")}
+          className={`rounded-2xl border p-4.5 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "approvals"
+              ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-300"
+              : "border-emerald-100 bg-emerald-50/40 hover:border-emerald-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Keputusan Otorisasi</p>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-emerald-800">{stats.approvals}</h3>
             <span className="text-xs text-emerald-600 font-semibold">Approve / Reject</span>
           </div>
-        </div>
+          {activeCard === "approvals" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-emerald-800 bg-emerald-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Approve & Reject
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4.5 shadow-xs">
+        {/* Files */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "files" ? null : "files")}
+          className={`rounded-2xl border p-4.5 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "files"
+              ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-300"
+              : "border-indigo-100 bg-indigo-50/40 hover:border-indigo-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Manajemen Berkas</p>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-indigo-800">{stats.files}</h3>
             <span className="text-xs text-indigo-600 font-semibold">Upload & Download</span>
           </div>
-        </div>
+          {activeCard === "files" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-indigo-800 bg-indigo-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Upload & Download
+            </span>
+          )}
+        </button>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4.5 shadow-xs">
+        {/* Emails */}
+        <button
+          type="button"
+          onClick={() => setActiveCard(activeCard === "emails" ? null : "emails")}
+          className={`rounded-2xl border p-4.5 shadow-xs text-left transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+            activeCard === "emails"
+              ? "border-amber-500 bg-amber-50 ring-2 ring-amber-300"
+              : "border-amber-100 bg-amber-50/40 hover:border-amber-200"
+          }`}
+        >
           <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Email Dispatch</p>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-amber-800">{stats.emails}</h3>
             <span className="text-xs text-amber-600 font-semibold">Terkirim</span>
           </div>
-        </div>
+          {activeCard === "emails" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded-full">
+              ▼ Filter: Email Dispatch
+            </span>
+          )}
+        </button>
       </div>
 
       {error && (
@@ -332,7 +406,7 @@ export default function AuditLog() {
                     </div>
                   </td>
                 </tr>
-              ) : logs.length === 0 ? (
+              ) : filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="py-16 text-center text-gray-400">
                     <History size={32} className="mx-auto mb-2 text-gray-300" />
@@ -341,7 +415,7 @@ export default function AuditLog() {
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => {
+                filteredLogs.map((log) => {
                   const badge = getActionBadge(log.action);
                   const BadgeIcon = badge.icon;
                   return (

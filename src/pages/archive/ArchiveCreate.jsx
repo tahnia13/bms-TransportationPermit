@@ -10,6 +10,17 @@ import {
   X,
 } from "lucide-react";
 import { useToast } from "../../components/Toast";
+import FormSelectWithCustom from "../../components/FormSelectWithCustom";
+
+const archiveCategories = [
+  "Permit",
+  "Vehicle",
+  "Driver",
+  "Trip",
+  "Safety & Inspection",
+  "Report",
+  "Other",
+];
 
 function ArchiveCreate() {
   const navigate = useNavigate();
@@ -492,78 +503,17 @@ function ArchiveCreate() {
 
 
             {/* CATEGORY */}
-
             <div>
-
-              <label
-                className="
-                  mb-2
-                  block
-                  text-sm
-                  font-semibold
-                  text-[#12372A]
-                "
-              >
-
-                Category
-
-                <span className="ml-1 text-red-500">
-                  *
-                </span>
-
-              </label>
-
-
-              <select
+              <FormSelectWithCustom
+                label="Category"
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
                 required
-                className="
-                  h-11
-                  w-full
-                  rounded-xl
-                  border
-                  border-gray-200
-                  bg-gray-50
-                  px-4
-                  text-sm
-                  text-[#12372A]
-                  outline-none
-                  transition
-                  focus:border-[#12372A]
-                  focus:bg-white
-                  focus:ring-2
-                  focus:ring-[#D8FF00]/30
-                "
-              >
-
-                <option value="Permit">
-                  Permit
-                </option>
-
-                <option value="Vehicle">
-                  Vehicle
-                </option>
-
-                <option value="Driver">
-                  Driver
-                </option>
-
-                <option value="Trip">
-                  Trip
-                </option>
-
-                <option value="Report">
-                  Report
-                </option>
-
-                <option value="Other">
-                  Other
-                </option>
-
-              </select>
-
+                defaultOptions={archiveCategories}
+                storageKey="archive_category"
+                placeholder="-- Select Category --"
+              />
             </div>
 
 
